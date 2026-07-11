@@ -63,7 +63,7 @@ interface EngineState {
   };
 }
 
-let ws: WebSocket | null = null;
+let pollInterval: ReturnType<typeof setInterval> | null = null;
 
 export const useEngineStore = create<EngineState>((set, get) => ({
   vessels: [],
@@ -89,11 +89,65 @@ export const useEngineStore = create<EngineState>((set, get) => ({
   selectedVessel: null,
   actions: {
     initEngine: () => {
-      // Backend is removed, websocket connection disabled.
-      console.log("Engine init called, but backend has been removed.");
+      if (pollInterval) return; // already started
+      
+      console.log("Connecting to FastAPI sidecar...");
       set((state) => ({
-        logs: [{ timestamp: new Date().toISOString(), message: 'Offline mode: Backend disconnected' }, ...state.logs].slice(0, 100)
+        logs: [{ timestamp: new Date().toISOString(), message: 'Connected to Grid & Gate Backend' }, ...state.logs].slice(0, 100)
       }));
+
+      pollInterval = setInterval(async () => {
+        try {
+          const res = await fetch('http://localhost:3000/alerts');
+          if (!res.ok) throw new Error('API Error');
+          const data = await res.json();
+          
+          if (Array.isArray(data)) {
+            // Map the Python response to our UI state
+            const mappedThreats: Incident[] = data.map((alert: any) => ({
+              id: `${alert.mmsi}-${alert.time}`,
+              timestamp: alert.time,
+              vesselId: alert.mmsi,
+              vesselName: `Vessel ${alert.mmsi}`,
+              type: 'Speed Violation in MPA',
+              severity: 'CRITICAL',
+              location: `${alert.lat.toFixed(4)}, ${alert.lon.toFixed(4)}`,
+              status: 'ACTIVE'
+            }));
+
+            const mappedVessels: Vessel[] = data.map((alert: any) => ({
+              id: alert.mmsi,
+              mmsi: alert.mmsi,
+              name: `Vessel ${alert.mmsi}`,
+              lat: alert.lat,
+              lng: alert.lon,
+              type: 'cargo',
+              heading: 0,
+              speed: alert.speed,
+              risk: 'critical',
+              riskScore: 99,
+              history: []
+            }));
+
+            // Deduplicate vessels (just keep latest per MMSI for simplicity)
+            const uniqueVesselsMap = new Map<string, Vessel>();
+            mappedVessels.forEach(v => uniqueVesselsMap.set(v.id, v));
+            const uniqueVessels = Array.from(uniqueVesselsMap.values());
+
+            set((state) => ({
+              activeThreats: mappedThreats,
+              vessels: uniqueVessels,
+              stats: {
+                ...state.stats,
+                activeThreats: mappedThreats.length,
+                totalTracked: uniqueVessels.length,
+              }
+            }));
+          }
+        } catch (err) {
+          console.error("Failed to fetch alerts:", err);
+        }
+      }, 2000);
     },
     toggleSimulation: () => {
       set((state) => ({

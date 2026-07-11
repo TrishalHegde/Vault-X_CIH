@@ -5,7 +5,7 @@ To run the database for the Grid & Gate Architecture, you must have Docker insta
 ## 1. Start the PostgreSQL Container
 Run this in a PowerShell or Command Prompt terminal:
 ```bash
-docker run --name maritime_db -e POSTGRES_PASSWORD=hackathon -p 5432:5432 -d postgis/postgis
+docker run --name vault_x_db -e POSTGRES_PASSWORD=hackathon -p 5432:5432 -d postgis/postgis
 ```
 
 ## 2. Initialize the Database Table

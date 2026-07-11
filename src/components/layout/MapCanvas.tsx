@@ -7,6 +7,7 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { useEngineStore } from '../../store/useEngineStore';
+import { H3GridOverlay } from '../map/H3GridOverlay';
 
 // Fix leafet default icon path issues in React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -42,8 +43,8 @@ const createVesselIcon = (name: string, heading: number, risk: string) => {
 };
 
 export const MapCanvas: React.FC = () => {
-  // Center on a global perspective
-  const MAP_CENTER: [number, number] = [20.0, 0.0];
+  // Center on Indian Coastline
+  const MAP_CENTER: [number, number] = [17.0, 78.0];
   
   const vessels = useEngineStore((state) => state.vessels);
   const initEngine = useEngineStore((state) => state.actions.initEngine);
@@ -58,7 +59,7 @@ export const MapCanvas: React.FC = () => {
     <div className="absolute inset-0 z-0 [&_.leaflet-container]:font-inter">
       <MapContainer 
         center={MAP_CENTER} 
-        zoom={3} 
+        zoom={5} 
         style={{ width: '100%', height: '100%' }}
         zoomControl={true}
       >
@@ -135,6 +136,9 @@ export const MapCanvas: React.FC = () => {
             />
           </React.Fragment>
         ))}
+
+        {/* H3 Grid Overlay */}
+        <H3GridOverlay />
       </MapContainer>
 
       {/* Crosshairs & Center Point Overlay (Screen Space) */}

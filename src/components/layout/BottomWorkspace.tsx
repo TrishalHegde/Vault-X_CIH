@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
+import { useEngineStore } from '../../store/useEngineStore';
 
 type Tab = 'table' | 'simulation' | 'performance' | 'health';
 
 export const BottomWorkspace: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('table');
+  const vessels = useEngineStore(state => state.vessels);
+  const stats = useEngineStore(state => state.stats);
+  const simulation = useEngineStore(state => state.simulation);
+  const toggleSimulation = useEngineStore(state => state.actions.toggleSimulation);
+  const setSelectedVessel = useEngineStore(state => state.actions.setSelectedVessel);
   
   const tabs = [
     { id: 'table', icon: 'table_rows', label: 'VESSEL INTELLIGENCE' },
@@ -48,34 +54,20 @@ export const BottomWorkspace: React.FC = () => {
                 <th className="font-label-caps text-label-caps text-outline py-2 px-4">VESSEL NAME</th>
                 <th className="font-label-caps text-label-caps text-outline py-2 px-4">TYPE</th>
                 <th className="font-label-caps text-label-caps text-outline py-2 px-4 text-right">SPEED (kn)</th>
-                <th className="font-label-caps text-label-caps text-outline py-2 px-4">DESTINATION</th>
+                <th className="font-label-caps text-label-caps text-outline py-2 px-4">RISK</th>
               </tr>
             </thead>
             <tbody className="font-data-tabular text-data-tabular text-on-surface divide-y divide-outline-variant/50">
-              <tr className="bg-primary-fixed-dim/10 hover:bg-surface-container-highest cursor-pointer transition-colors group">
-                <td className="py-1.5 px-4"><div className="w-2 h-2 rounded-full bg-primary-fixed-dim mx-auto glow-active"></div></td>
-                <td className="py-1.5 px-4 text-primary-fixed-dim">235086000</td>
-                <td className="py-1.5 px-4 font-bold text-primary-fixed-dim">MT PACIFIC EXPLORER</td>
-                <td className="py-1.5 px-4 text-on-surface-variant">Container</td>
-                <td className="py-1.5 px-4 text-right">18.2</td>
-                <td className="py-1.5 px-4 truncate max-w-[150px]">ROTTERDAM [NL]</td>
-              </tr>
-              <tr className="hover:bg-surface-container-highest cursor-pointer transition-colors">
-                <td className="py-1.5 px-4"><div className="w-2 h-2 rounded-full bg-outline mx-auto"></div></td>
-                <td className="py-1.5 px-4">413840291</td>
-                <td className="py-1.5 px-4">ZHE HAI 515</td>
-                <td className="py-1.5 px-4 text-on-surface-variant">Bulk Carrier</td>
-                <td className="py-1.5 px-4 text-right">12.5</td>
-                <td className="py-1.5 px-4 truncate max-w-[150px]">SHANGHAI [CN]</td>
-              </tr>
-              <tr className="hover:bg-surface-container-highest cursor-pointer transition-colors bg-error/5">
-                <td className="py-1.5 px-4"><div className="w-2 h-2 rounded-full bg-error mx-auto pulse-critical"></div></td>
-                <td className="py-1.5 px-4 text-error">UNKNOWN</td>
-                <td className="py-1.5 px-4 text-error">DARK FLEET TGT 01</td>
-                <td className="py-1.5 px-4 text-on-surface-variant">Tanker (Suspect)</td>
-                <td className="py-1.5 px-4 text-right">22.1</td>
-                <td className="py-1.5 px-4 truncate max-w-[150px] text-error">NONE</td>
-              </tr>
+              {vessels.slice(0, 100).map(v => (
+                <tr key={v.id} onClick={() => setSelectedVessel(v.id)} className={`hover:bg-surface-container-highest cursor-pointer transition-colors ${v.risk === 'high' ? 'bg-error/5' : ''}`}>
+                  <td className="py-1.5 px-4"><div className={`w-2 h-2 rounded-full mx-auto ${v.risk === 'high' ? 'bg-error pulse-critical' : 'bg-primary-fixed-dim glow-active'}`}></div></td>
+                  <td className={`py-1.5 px-4 ${v.risk === 'high' ? 'text-error' : 'text-primary-fixed-dim'}`}>{v.mmsi || v.id}</td>
+                  <td className={`py-1.5 px-4 ${v.risk === 'high' ? 'text-error' : 'font-bold text-primary-fixed-dim'}`}>{v.name}</td>
+                  <td className="py-1.5 px-4 text-on-surface-variant capitalize">{v.type}</td>
+                  <td className="py-1.5 px-4 text-right">{v.speed.toFixed(1)}</td>
+                  <td className={`py-1.5 px-4 uppercase ${v.risk === 'high' ? 'text-error' : 'text-outline'}`}>{v.risk}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         )}
@@ -83,20 +75,20 @@ export const BottomWorkspace: React.FC = () => {
         {activeTab === 'performance' && (
           <div className="p-4 grid grid-cols-4 gap-4">
             <div className="border border-outline-variant p-4 bg-surface-container">
-              <span className="font-label-caps text-outline uppercase">Peak Throughput</span>
-              <div className="font-data-tabular text-[24px] text-primary-fixed-dim font-bold mt-2">52,109 <span className="text-[12px] text-outline">msg/s</span></div>
+              <span className="font-label-caps text-outline uppercase">Current Throughput</span>
+              <div className="font-data-tabular text-[24px] text-primary-fixed-dim font-bold mt-2">{stats.msgPerSec.toLocaleString()} <span className="text-[12px] text-outline">msg/s</span></div>
             </div>
             <div className="border border-outline-variant p-4 bg-surface-container">
               <span className="font-label-caps text-outline uppercase">Average Latency</span>
-              <div className="font-data-tabular text-[24px] text-on-surface font-bold mt-2">12 <span className="text-[12px] text-outline">ms</span></div>
+              <div className="font-data-tabular text-[24px] text-on-surface font-bold mt-2">{stats.latency} <span className="text-[12px] text-outline">ms</span></div>
             </div>
             <div className="border border-outline-variant p-4 bg-surface-container">
-              <span className="font-label-caps text-outline uppercase">H3 Index Ops</span>
-              <div className="font-data-tabular text-[24px] text-on-surface font-bold mt-2">1.2M <span className="text-[12px] text-outline">/sec</span></div>
+              <span className="font-label-caps text-outline uppercase">Active Threats</span>
+              <div className="font-data-tabular text-[24px] text-error font-bold mt-2">{stats.activeThreats}</div>
             </div>
             <div className="border border-outline-variant p-4 bg-surface-container">
               <span className="font-label-caps text-outline uppercase">Uptime</span>
-              <div className="font-data-tabular text-[24px] text-primary-fixed-dim font-bold mt-2">99.999%</div>
+              <div className="font-data-tabular text-[24px] text-primary-fixed-dim font-bold mt-2">{stats.uptime}</div>
             </div>
           </div>
         )}
@@ -104,6 +96,14 @@ export const BottomWorkspace: React.FC = () => {
         {activeTab === 'simulation' && (
           <div className="p-4">
             <h3 className="font-label-caps text-outline uppercase mb-4">Tactical Simulation Controls</h3>
+            <div className="flex gap-4 mb-4">
+              <button 
+                onClick={toggleSimulation}
+                className={`border px-4 py-2 font-label-caps transition-colors ${simulation.isRunning ? 'bg-error/10 border-error text-error hover:bg-error hover:text-on-error' : 'bg-primary-fixed-dim/10 border-primary-fixed-dim text-primary-fixed-dim hover:bg-primary-fixed-dim hover:text-on-primary'}`}
+              >
+                {simulation.isRunning ? 'PAUSE ENGINE' : 'START ENGINE'}
+              </button>
+            </div>
             <div className="flex gap-4">
               <button className="bg-error/10 border border-error text-error px-4 py-2 font-label-caps hover:bg-error hover:text-on-error transition-colors">
                 TRIGGER DARK FLEET

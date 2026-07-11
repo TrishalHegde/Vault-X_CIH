@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Polygon, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import { useEngineStore } from '../../store/useEngineStore';
 
 // Fix leafet default icon path issues in React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -15,19 +16,8 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-interface Vessel {
-  id: string;
-  name: string;
-  lat: number;
-  lng: number;
-  type: string;
-  heading: number;
-  speed: number;
-  risk: 'low' | 'high';
-}
-
 const createVesselIcon = (name: string, heading: number, risk: string) => {
-  const color = risk === 'high' ? '#ffb4ab' : '#00daf3';
+  const color = risk === 'high' ? '#ff0000' : '#0055ff';
   const shadowClass = risk === 'high' ? 'pulse-critical' : 'glow-active';
   
   return L.divIcon({
@@ -42,7 +32,7 @@ const createVesselIcon = (name: string, heading: number, risk: string) => {
           }
         </svg>
       </div>
-      <div style="position: absolute; top: -15px; left: 25px; color: ${color}; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: bold; white-space: nowrap; text-shadow: 0 0 4px #000, 0 0 4px #000;">
+      <div style="position: absolute; top: -15px; left: 25px; color: ${color}; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: bold; white-space: nowrap; text-shadow: 0 0 2px #fff, 0 0 2px #fff;">
         ${name}
       </div>
     `,
@@ -52,43 +42,27 @@ const createVesselIcon = (name: string, heading: number, risk: string) => {
 };
 
 export const MapCanvas: React.FC = () => {
-  // Center on New Mangalore Port, India
-  const MAP_CENTER: [number, number] = [12.9259, 74.7937];
+  // Center on a global perspective
+  const MAP_CENTER: [number, number] = [20.0, 0.0];
   
-  const [vessels, setVessels] = useState<Vessel[]>([
-    { id: '1', name: 'MT PACIFIC EXP', lat: 12.9200, lng: 74.7800, type: 'container', heading: 45, speed: 18.2, risk: 'low' },
-    { id: '2', name: 'DARK FLEET TGT 01', lat: 12.9400, lng: 74.7700, type: 'tanker', heading: 120, speed: 22.1, risk: 'high' },
-    { id: '3', name: 'CG CUTTER VALIANT', lat: 12.9350, lng: 74.7850, type: 'patrol', heading: 340, speed: 28.0, risk: 'low' },
-    { id: '4', name: 'ZHE HAI 515', lat: 12.9100, lng: 74.7900, type: 'bulk', heading: 20, speed: 12.5, risk: 'low' },
-  ]);
+  const vessels = useEngineStore((state) => state.vessels);
+  const initEngine = useEngineStore((state) => state.actions.initEngine);
+  const setSelectedVessel = useEngineStore((state) => state.actions.setSelectedVessel);
 
-  // Simulate live movement
   useEffect(() => {
-    const interval = setInterval(() => {
-      setVessels(prev => prev.map(v => {
-        const rad = (v.heading - 90) * (Math.PI / 180);
-        // Degrees approximation for movement
-        const dx = Math.cos(rad) * (v.speed * 0.000005);
-        const dy = Math.sin(rad) * (v.speed * 0.000005);
-        return {
-          ...v,
-          lng: v.lng + dx,
-          lat: v.lat - dy, // Subtracting because Leaflet lat goes UP, our math assumed down
-        };
-      }));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+    // Initialize engine once
+    initEngine();
+  }, [initEngine]);
 
   return (
-    <div className="absolute inset-0 z-0 bg-[#0a0d10] [&_.leaflet-container]:bg-[#0a0d10] [&_.leaflet-container]:font-inter">
+    <div className="absolute inset-0 z-0 [&_.leaflet-container]:font-inter">
       <MapContainer 
         center={MAP_CENTER} 
-        zoom={14} 
-        style={{ width: '100%', height: '100%', backgroundColor: '#0a0d10' }}
-        zoomControl={false}
+        zoom={3} 
+        style={{ width: '100%', height: '100%' }}
+        zoomControl={true}
       >
-        {/* Realistic Base Map */}
+        {/* Realistic Base Map - Standard Colorful OSM */}
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -97,8 +71,8 @@ export const MapCanvas: React.FC = () => {
         {/* Tactical Overlay Elements mapped to Mangalore coordinates */}
         
         {/* Central Radar Ping */}
-        <Circle center={MAP_CENTER} radius={3000} pathOptions={{ color: '#00daf3', opacity: 0.1, fillOpacity: 0.02, dashArray: '10, 20' }} />
-        <Circle center={MAP_CENTER} radius={1000} pathOptions={{ color: '#00daf3', opacity: 0.2, fillOpacity: 0 }} />
+        <Circle center={[12.9259, 74.7937]} radius={3000} pathOptions={{ color: '#0055ff', opacity: 0.3, fillOpacity: 0.1, dashArray: '10, 20' }} />
+        <Circle center={[12.9259, 74.7937]} radius={1000} pathOptions={{ color: '#0055ff', opacity: 0.5, fillOpacity: 0 }} />
 
         {/* Whale Corridor Geofence */}
         <Polyline 
@@ -107,7 +81,7 @@ export const MapCanvas: React.FC = () => {
             [12.9300, 74.7500],
             [12.9500, 74.7300],
           ]} 
-          pathOptions={{ color: '#00e5ff', weight: 40, opacity: 0.1 }}
+          pathOptions={{ color: '#00e5ff', weight: 40, opacity: 0.3 }}
         />
         <Polyline 
           positions={[
@@ -126,7 +100,7 @@ export const MapCanvas: React.FC = () => {
             [12.9450, 74.7900],
             [12.9400, 74.7750]
           ]} 
-          pathOptions={{ color: '#ffb4ab', weight: 1, dashArray: '4, 2', fillColor: '#aa2600', fillOpacity: 0.15 }}
+          pathOptions={{ color: '#ff0000', weight: 2, dashArray: '4, 2', fillColor: '#ff0000', fillOpacity: 0.3 }}
         />
 
         {/* Shipping Lane */}
@@ -135,33 +109,41 @@ export const MapCanvas: React.FC = () => {
             [12.9000, 74.7800],
             [12.9800, 74.8000],
           ]} 
-          pathOptions={{ color: '#e8c351', weight: 60, opacity: 0.1 }}
+          pathOptions={{ color: '#e8c351', weight: 60, opacity: 0.2 }}
         />
         <Polyline 
           positions={[
             [12.9000, 74.7800],
             [12.9800, 74.8000],
           ]} 
-          pathOptions={{ color: '#e8c351', weight: 2, dashArray: '10, 10', opacity: 0.3 }}
+          pathOptions={{ color: '#e8c351', weight: 2, dashArray: '10, 10', opacity: 0.5 }}
         />
 
-        {/* Live Vessels */}
+        {/* Live Vessels and Trails */}
         {vessels.map(v => (
-          <Marker 
-            key={v.id} 
-            position={[v.lat, v.lng]} 
-            icon={createVesselIcon(v.name, v.heading, v.risk)}
-          />
+          <React.Fragment key={v.id}>
+            {v.history.length > 1 && (
+              <Polyline 
+                positions={v.history} 
+                pathOptions={{ color: v.risk === 'high' ? '#ff0000' : '#0055ff', weight: 2, opacity: 0.6 }} 
+              />
+            )}
+            <Marker 
+              position={[v.lat, v.lng]} 
+              icon={createVesselIcon(v.name, v.heading, v.risk)}
+              eventHandlers={{ click: () => setSelectedVessel(v.id) }}
+            />
+          </React.Fragment>
         ))}
       </MapContainer>
 
       {/* Crosshairs & Center Point Overlay (Screen Space) */}
       <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-[1000]">
-        <div className="w-10 h-10 border border-[#00daf3]/30 rounded-full flex items-center justify-center">
-          <div className="w-1 h-1 bg-[#00daf3]/50 rounded-full"></div>
+        <div className="w-10 h-10 border border-[#0055ff]/50 rounded-full flex items-center justify-center">
+          <div className="w-1 h-1 bg-[#0055ff] rounded-full"></div>
         </div>
-        <div className="absolute top-0 bottom-0 left-1/2 w-px bg-[#00daf3]/10"></div>
-        <div className="absolute left-0 right-0 top-1/2 h-px bg-[#00daf3]/10"></div>
+        <div className="absolute top-0 bottom-0 left-1/2 w-px bg-[#0055ff]/30"></div>
+        <div className="absolute left-0 right-0 top-1/2 h-px bg-[#0055ff]/30"></div>
       </div>
     </div>
   );

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useEngineStore } from '../../store/useEngineStore';
 
 export const TopHeader: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const stats = useEngineStore((state) => state.stats);
   
   const notifRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
@@ -44,12 +46,12 @@ export const TopHeader: React.FC = () => {
           <span>WebSocket: Connected</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-primary-fixed-dim font-bold">50,421</span>
+          <span className="text-primary-fixed-dim font-bold">{stats.msgPerSec.toLocaleString()}</span>
           <span>Msg/Sec</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-outline">Latency:</span>
-          <span className="text-primary-fixed-dim">12ms</span>
+          <span className="text-primary-fixed-dim">{stats.latency}ms</span>
         </div>
       </div>
 

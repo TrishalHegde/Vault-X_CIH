@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
+import { useEngineStore } from '../../store/useEngineStore';
 
 type Tab = 'incident' | 'active' | 'port' | 'coastal' | 'fleet';
 
 export const Sidebar: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('active');
+  const vessels = useEngineStore(state => state.vessels);
+  const incidents = useEngineStore(state => state.incidents);
 
   const tabs: { id: Tab; icon: string; label: string; alert?: number }[] = [
-    { id: 'incident', icon: 'warning', label: 'Incident Feed', alert: 3 },
+    { id: 'incident', icon: 'warning', label: 'Incident Feed', alert: incidents.length },
     { id: 'active', icon: 'anchor', label: 'Active Ops' },
     { id: 'port', icon: 'lan', label: 'Port Ops' },
     { id: 'coastal', icon: 'shield', label: 'Coastal Prot' },
@@ -59,26 +62,21 @@ export const Sidebar: React.FC = () => {
         {activeTab === 'incident' && (
           <div className="flex flex-col gap-4">
             <h3 className="font-label-caps text-outline uppercase tracking-widest text-[10px] mb-2">Live Incident Feed</h3>
-            {/* Mock Incident 1 */}
-            <div className="border border-error/50 bg-error/10 p-3 rounded-sm pulse-critical">
-              <div className="flex justify-between items-start mb-2">
-                <span className="font-data-tabular text-error text-[12px] font-bold">14:21:05Z</span>
-                <span className="bg-error text-on-error px-1 text-[9px] font-bold rounded">HIGH SEVERITY</span>
-              </div>
-              <p className="font-body-md text-on-surface text-[13px] mb-1">Restricted Zone Intrusion</p>
-              <p className="font-data-tabular text-outline text-[11px]">Vessel: UNKNOWN [Dark Fleet TGT 01]</p>
-              <p className="font-data-tabular text-outline text-[11px]">Loc: HAZMAT-99X</p>
-            </div>
-            {/* Mock Incident 2 */}
-            <div className="border border-primary-fixed-dim/50 bg-surface-container-highest p-3 rounded-sm">
-              <div className="flex justify-between items-start mb-2">
-                <span className="font-data-tabular text-primary-fixed-dim text-[12px] font-bold">14:15:30Z</span>
-                <span className="bg-outline text-on-surface px-1 text-[9px] font-bold rounded">WARNING</span>
-              </div>
-              <p className="font-body-md text-on-surface text-[13px] mb-1">Overspeeding Detection</p>
-              <p className="font-data-tabular text-outline text-[11px]">Vessel: MT PACIFIC EXPLORER</p>
-              <p className="font-data-tabular text-outline text-[11px]">Speed: 18.2 kn (Limit: 12 kn)</p>
-            </div>
+            {incidents.length === 0 ? (
+              <div className="text-on-surface-variant text-[12px] italic">No active incidents.</div>
+            ) : (
+              incidents.map(inc => (
+                <div key={inc.id} className={`border p-3 rounded-sm ${inc.severity === 'CRITICAL' ? 'border-error/50 bg-error/10 pulse-critical' : 'border-primary-fixed-dim/50 bg-surface-container-highest'}`}>
+                  <div className="flex justify-between items-start mb-2">
+                    <span className={`font-data-tabular text-[12px] font-bold ${inc.severity === 'CRITICAL' ? 'text-error' : 'text-primary-fixed-dim'}`}>{inc.timestamp}</span>
+                    <span className={`${inc.severity === 'CRITICAL' ? 'bg-error text-on-error' : 'bg-outline text-on-surface'} px-1 text-[9px] font-bold rounded`}>{inc.severity}</span>
+                  </div>
+                  <p className="font-body-md text-on-surface text-[13px] mb-1">{inc.type}</p>
+                  <p className="font-data-tabular text-outline text-[11px]">Vessel: {inc.vesselName}</p>
+                  <p className="font-data-tabular text-outline text-[11px]">Loc: {inc.location}</p>
+                </div>
+              ))
+            )}
           </div>
         )}
 
@@ -115,17 +113,30 @@ export const Sidebar: React.FC = () => {
              <h3 className="font-label-caps text-outline uppercase tracking-widest text-[10px] mb-2">Port Operations</h3>
              <div className="grid grid-cols-2 gap-2">
                <div className="bg-surface-container-highest p-2 border border-outline-variant rounded-sm flex flex-col">
-                  <span className="font-data-tabular text-[20px] text-primary-fixed-dim font-bold">14</span>
+                  <span className="font-data-tabular text-[20px] text-primary-fixed-dim font-bold">{Math.floor(vessels.length * 0.15)}</span>
                   <span className="font-label-caps text-outline">Arrivals (ETA &lt;2h)</span>
                </div>
                <div className="bg-surface-container-highest p-2 border border-outline-variant rounded-sm flex flex-col">
-                  <span className="font-data-tabular text-[20px] text-on-surface font-bold">8</span>
+                  <span className="font-data-tabular text-[20px] text-on-surface font-bold">{Math.floor(vessels.length * 0.08)}</span>
                   <span className="font-label-caps text-outline">Departures</span>
                </div>
                <div className="bg-surface-container-highest p-2 border border-outline-variant rounded-sm flex flex-col col-span-2">
                   <span className="font-data-tabular text-[20px] text-error font-bold">92%</span>
                   <span className="font-label-caps text-outline">Berth Occupancy</span>
                </div>
+             </div>
+          </div>
+        )}
+
+        {activeTab === 'fleet' && (
+          <div className="flex flex-col gap-4">
+             <h3 className="font-label-caps text-outline uppercase tracking-widest text-[10px] mb-2">Fleet Intelligence</h3>
+             <div className="flex flex-col gap-2 text-sm text-on-surface">
+               <div className="flex justify-between"><span>Cargo Ships</span><span className="font-data-tabular">{vessels.filter(v => v.type === 'cargo').length}</span></div>
+               <div className="flex justify-between"><span>Tankers</span><span className="font-data-tabular">{vessels.filter(v => v.type === 'tanker').length}</span></div>
+               <div className="flex justify-between"><span>Fishing</span><span className="font-data-tabular">{vessels.filter(v => v.type === 'fishing').length}</span></div>
+               <div className="flex justify-between"><span>Military/Patrol</span><span className="font-data-tabular">{vessels.filter(v => ['military','patrol'].includes(v.type)).length}</span></div>
+               <div className="flex justify-between text-error font-bold"><span>High Risk</span><span className="font-data-tabular">{vessels.filter(v => v.risk === 'high').length}</span></div>
              </div>
           </div>
         )}

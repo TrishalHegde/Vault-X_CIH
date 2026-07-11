@@ -14,7 +14,8 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-leaflet": "^5.0.0",
-    "react-zoom-pan-pinch": "^4.0.3"
+    "react-zoom-pan-pinch": "^4.0.3",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@tailwindcss/container-queries": "^0.1.1",

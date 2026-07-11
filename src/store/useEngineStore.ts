@@ -11,6 +11,8 @@ export interface Vessel {
   speed: number;
   risk: 'low' | 'high';
   history: [number, number][]; // lat, lng pairs
+  originPort?: string;
+  destinationPort?: string;
 }
 
 export interface Incident {
@@ -21,6 +23,7 @@ export interface Incident {
   type: string;
   severity: 'CRITICAL' | 'HIGH' | 'WARNING' | 'INFO';
   location: string;
+  status: 'ACTIVE' | 'RESOLVED';
 }
 
 export interface LogEntry {
@@ -30,7 +33,8 @@ export interface LogEntry {
 
 interface EngineState {
   vessels: Vessel[];
-  incidents: Incident[];
+  activeThreats: Incident[];
+  threatHistory: Incident[];
   logs: LogEntry[];
   stats: {
     totalTracked: number;
@@ -44,127 +48,149 @@ interface EngineState {
     isRunning: boolean;
     speedMultiplier: number;
   };
+  settings: {
+    showH3Grid: boolean;
+  };
+  restrictedCells: string[];
   selectedVessel: string | null;
   actions: {
     initEngine: () => void;
     toggleSimulation: () => void;
-    tick: () => void;
+    toggleH3Grid: () => void;
+    tick: () => void; // Keep for compatibility if UI calls it
     setSelectedVessel: (id: string | null) => void;
   };
 }
 
-// Helper to generate random vessels around multiple regions
-const generateVessels = (count: number): Vessel[] => {
-  const types = ['cargo', 'tanker', 'passenger', 'fishing', 'patrol', 'research', 'tug', 'military'] as const;
-  const vessels: Vessel[] = [];
-  
-  const regions = [
-    { lat: 12.9259, lng: 74.7937, name: 'Mangalore' },
-    { lat: 1.2902, lng: 103.8519, name: 'Singapore' },
-    { lat: 51.9225, lng: 4.4791, name: 'Rotterdam' },
-    { lat: 35.9375, lng: -5.3160, name: 'Gibraltar' },
-    { lat: 8.9585, lng: -79.5292, name: 'Panama' }
-  ];
-  
-  for (let i = 0; i < count; i++) {
-    const region = regions[Math.floor(Math.random() * regions.length)];
-    // Spread them out over a much larger area (approx 10 degrees)
-    const latOffset = (Math.random() - 0.5) * 15;
-    const lngOffset = (Math.random() - 0.5) * 15;
-    
-    vessels.push({
-      id: `V${i.toString().padStart(4, '0')}`,
-      mmsi: Math.floor(100000000 + Math.random() * 900000000).toString(),
-      name: `VESSEL-${i}`,
-      lat: region.lat + latOffset,
-      lng: region.lng + lngOffset,
-      type: types[Math.floor(Math.random() * types.length)],
-      heading: Math.floor(Math.random() * 360),
-      speed: Math.random() * 20 + 5,
-      risk: Math.random() > 0.95 ? 'high' : 'low',
-      history: [],
-    });
-  }
-  
-  // Hardcode a few specific ones in Mangalore
-  vessels[0].name = 'MT PACIFIC EXP';
-  vessels[0].risk = 'low';
-  vessels[0].lat = 12.9200;
-  vessels[0].lng = 74.7800;
-  vessels[1].name = 'DARK FLEET TGT 01';
-  vessels[1].risk = 'high';
-  vessels[1].lat = 12.9400;
-  vessels[1].lng = 74.7700;
-  
-  return vessels;
-};
+let ws: WebSocket | null = null;
 
 export const useEngineStore = create<EngineState>((set, get) => ({
   vessels: [],
-  incidents: [],
+  activeThreats: [],
+  threatHistory: [],
   logs: [],
   stats: {
     totalTracked: 0,
-    msgProcessed: 2145000000,
+    msgProcessed: 0,
     activeThreats: 0,
-    uptime: '342d 12h',
-    msgPerSec: 50421,
-    latency: 12,
+    uptime: '0m 0s',
+    msgPerSec: 0,
+    latency: 0,
   },
   simulation: {
     isRunning: true,
     speedMultiplier: 1,
   },
+  settings: {
+    showH3Grid: false,
+  },
+  restrictedCells: [],
   selectedVessel: null,
   actions: {
     initEngine: () => {
-      const v = generateVessels(350);
-      set({ 
-        vessels: v, 
-        stats: { ...get().stats, totalTracked: v.length, activeThreats: v.filter(x => x.risk === 'high').length } 
-      });
+      if (ws) return; // Already initialized
       
-      setInterval(() => {
-        get().actions.tick();
-      }, 1000);
+      ws = new WebSocket('ws://localhost:3000');
+      
+      ws.onopen = () => {
+        set((state) => ({
+          logs: [{ timestamp: new Date().toISOString(), message: 'Connected to Engine Server' }, ...state.logs].slice(0, 100)
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        const state = get();
+        if (!state.simulation.isRunning) return;
+
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.type === 'engine_update') {
+            
+            // Map backend vessels to UI format with history tracking (history omitted from backend for bandwidth)
+            const oldVesselsMap = new Map(state.vessels.map(v => [v.id, v]));
+            
+            const newVessels = payload.vessels.map((v: any) => {
+              const oldV = oldVesselsMap.get(v.id);
+              let history: [number, number][] = oldV ? [...oldV.history] : [];
+              
+              if (!oldV || oldV.lat !== v.lat || oldV.lng !== v.lng) {
+                history.push([v.lat, v.lng]);
+                if (history.length > 50) history.shift();
+              }
+              
+              return { ...v, history };
+            });
+
+            const newIncidents: Incident[] = payload.alerts.map((a: any) => ({
+              id: a.id,
+              timestamp: new Date(a.timestamp).toLocaleTimeString(),
+              vesselId: a.vesselId,
+              vesselName: a.vesselName,
+              type: a.type,
+              severity: a.severity,
+              location: a.location,
+              status: a.status
+            }));
+
+            // Optional: generate log entries from incidents
+            const newLogs = newIncidents.map(inc => ({
+              timestamp: inc.timestamp,
+              message: `[${inc.severity}] ${inc.type} on ${inc.vesselName} - ${inc.status}`
+            }));
+
+            const updatedActive = [...state.activeThreats];
+            const updatedHistory = [...state.threatHistory];
+
+            newIncidents.forEach(inc => {
+              if (inc.status === 'ACTIVE') {
+                updatedActive.unshift(inc);
+              } else if (inc.status === 'RESOLVED') {
+                const idx = updatedActive.findIndex(a => a.vesselId === inc.vesselId && a.type === inc.type);
+                if (idx !== -1) {
+                  const resolved = updatedActive.splice(idx, 1)[0];
+                  resolved.status = 'RESOLVED';
+                  resolved.timestamp = inc.timestamp; // update resolution time
+                  updatedHistory.unshift(resolved);
+                } else {
+                  updatedHistory.unshift(inc);
+                }
+              }
+            });
+
+            set({
+              vessels: newVessels,
+              activeThreats: updatedActive.slice(0, 100),
+              threatHistory: updatedHistory.slice(0, 500),
+              logs: [...newLogs, ...state.logs].slice(0, 200),
+              stats: payload.stats,
+              restrictedCells: payload.restrictedCells || []
+            });
+          }
+        } catch (e) {
+          console.error("Error parsing WS message", e);
+        }
+      };
+
+      ws.onclose = () => {
+        ws = null;
+        set((state) => ({
+          logs: [{ timestamp: new Date().toISOString(), message: 'Disconnected from Engine Server' }, ...state.logs].slice(0, 100)
+        }));
+        // Reconnect logic can be added here
+      };
     },
     toggleSimulation: () => {
       set((state) => ({
         simulation: { ...state.simulation, isRunning: !state.simulation.isRunning }
       }));
     },
+    toggleH3Grid: () => {
+      set((state) => ({
+        settings: { ...state.settings, showH3Grid: !state.settings.showH3Grid }
+      }));
+    },
     tick: () => {
-      const state = get();
-      if (!state.simulation.isRunning) return;
-
-      const newVessels = state.vessels.map(v => {
-        const rad = (v.heading - 90) * (Math.PI / 180);
-        // Add current pos to history
-        const history = [...v.history, [v.lat, v.lng] as [number, number]];
-        if (history.length > 50) history.shift();
-        
-        return {
-          ...v,
-          lat: v.lat - (Math.sin(rad) * (v.speed * 0.00005 * state.simulation.speedMultiplier)),
-          lng: v.lng + (Math.cos(rad) * (v.speed * 0.00005 * state.simulation.speedMultiplier)),
-          history
-        };
-      });
-
-      // Simulate some jitter in stats
-      const msgPerSec = Math.floor(50000 + Math.random() * 5000);
-      const latency = Math.floor(8 + Math.random() * 10);
-      const msgProcessed = state.stats.msgProcessed + msgPerSec;
-
-      set({
-        vessels: newVessels,
-        stats: {
-          ...state.stats,
-          msgProcessed,
-          msgPerSec,
-          latency
-        }
-      });
+      // Handled by WS now. Keep function so UI doesn't crash if it calls tick() directly.
     },
     setSelectedVessel: (id) => {
       set({ selectedVessel: id });

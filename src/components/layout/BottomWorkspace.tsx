@@ -7,6 +7,8 @@ export const BottomWorkspace: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('table');
   const vessels = useEngineStore(state => state.vessels);
   const stats = useEngineStore(state => state.stats);
+  const activeThreats = useEngineStore(state => state.activeThreats);
+  const threatHistory = useEngineStore(state => state.threatHistory);
   const simulation = useEngineStore(state => state.simulation);
   const toggleSimulation = useEngineStore(state => state.actions.toggleSimulation);
   const setSelectedVessel = useEngineStore(state => state.actions.setSelectedVessel);
@@ -73,22 +75,81 @@ export const BottomWorkspace: React.FC = () => {
         )}
 
         {activeTab === 'performance' && (
-          <div className="p-4 grid grid-cols-4 gap-4">
-            <div className="border border-outline-variant p-4 bg-surface-container">
-              <span className="font-label-caps text-outline uppercase">Current Throughput</span>
-              <div className="font-data-tabular text-[24px] text-primary-fixed-dim font-bold mt-2">{stats.msgPerSec.toLocaleString()} <span className="text-[12px] text-outline">msg/s</span></div>
+          <div className="flex flex-col h-full overflow-hidden">
+            <div className="p-4 grid grid-cols-4 gap-4 shrink-0">
+              <div className="border border-outline-variant p-4 bg-surface-container">
+                <span className="font-label-caps text-outline uppercase">Current Throughput</span>
+                <div className="font-data-tabular text-[24px] text-primary-fixed-dim font-bold mt-2">{stats.msgPerSec.toLocaleString()} <span className="text-[12px] text-outline">msg/s</span></div>
+              </div>
+              <div className="border border-outline-variant p-4 bg-surface-container">
+                <span className="font-label-caps text-outline uppercase">Average Latency</span>
+                <div className="font-data-tabular text-[24px] text-on-surface font-bold mt-2">{stats.latency} <span className="text-[12px] text-outline">ms</span></div>
+              </div>
+              <div className="border border-outline-variant p-4 bg-surface-container">
+                <span className="font-label-caps text-outline uppercase">Active Threats</span>
+                <div className="font-data-tabular text-[24px] text-error font-bold mt-2">{stats.activeThreats}</div>
+              </div>
+              <div className="border border-outline-variant p-4 bg-surface-container">
+                <span className="font-label-caps text-outline uppercase">Uptime</span>
+                <div className="font-data-tabular text-[24px] text-primary-fixed-dim font-bold mt-2">{stats.uptime}</div>
+              </div>
             </div>
-            <div className="border border-outline-variant p-4 bg-surface-container">
-              <span className="font-label-caps text-outline uppercase">Average Latency</span>
-              <div className="font-data-tabular text-[24px] text-on-surface font-bold mt-2">{stats.latency} <span className="text-[12px] text-outline">ms</span></div>
-            </div>
-            <div className="border border-outline-variant p-4 bg-surface-container">
-              <span className="font-label-caps text-outline uppercase">Active Threats</span>
-              <div className="font-data-tabular text-[24px] text-error font-bold mt-2">{stats.activeThreats}</div>
-            </div>
-            <div className="border border-outline-variant p-4 bg-surface-container">
-              <span className="font-label-caps text-outline uppercase">Uptime</span>
-              <div className="font-data-tabular text-[24px] text-primary-fixed-dim font-bold mt-2">{stats.uptime}</div>
+            
+            <div className="flex-1 grid grid-cols-2 gap-4 px-4 pb-4 min-h-[200px] overflow-hidden">
+              <div className="flex flex-col border border-outline-variant bg-surface-container overflow-hidden">
+                <div className="p-2 border-b border-outline-variant bg-surface-container-highest font-label-caps text-outline">ACTIVE THREATS</div>
+                <div className="flex-1 overflow-y-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="sticky top-0 bg-surface-container-high border-b border-outline-variant z-10">
+                      <tr>
+                        <th className="font-label-caps text-label-caps text-outline py-2 px-4">SEV</th>
+                        <th className="font-label-caps text-label-caps text-outline py-2 px-4">TIME</th>
+                        <th className="font-label-caps text-label-caps text-outline py-2 px-4">VESSEL</th>
+                        <th className="font-label-caps text-label-caps text-outline py-2 px-4">RULE</th>
+                        <th className="font-label-caps text-label-caps text-outline py-2 px-4">LOC</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-data-tabular text-[11px] text-on-surface divide-y divide-outline-variant/50">
+                      {activeThreats.map(t => (
+                        <tr key={t.id} onClick={() => setSelectedVessel(t.vesselId)} className="hover:bg-surface-container-highest cursor-pointer">
+                          <td className={`py-1.5 px-4 font-bold ${t.severity === 'CRITICAL' ? 'text-error' : 'text-primary-fixed-dim'}`}>{t.severity}</td>
+                          <td className="py-1.5 px-4 text-outline">{t.timestamp}</td>
+                          <td className="py-1.5 px-4 text-on-surface-variant">{t.vesselName}</td>
+                          <td className="py-1.5 px-4">{t.type}</td>
+                          <td className="py-1.5 px-4">{t.location}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div className="flex flex-col border border-outline-variant bg-surface-container overflow-hidden">
+                <div className="p-2 border-b border-outline-variant bg-surface-container-highest font-label-caps text-outline">THREAT HISTORY (RESOLVED)</div>
+                <div className="flex-1 overflow-y-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="sticky top-0 bg-surface-container-high border-b border-outline-variant z-10">
+                      <tr>
+                        <th className="font-label-caps text-label-caps text-outline py-2 px-4">SEV</th>
+                        <th className="font-label-caps text-label-caps text-outline py-2 px-4">TIME</th>
+                        <th className="font-label-caps text-label-caps text-outline py-2 px-4">VESSEL</th>
+                        <th className="font-label-caps text-label-caps text-outline py-2 px-4">RULE</th>
+                        <th className="font-label-caps text-label-caps text-outline py-2 px-4">LOC</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-data-tabular text-[11px] text-on-surface divide-y divide-outline-variant/50 opacity-70">
+                      {threatHistory.map(t => (
+                        <tr key={t.id} onClick={() => setSelectedVessel(t.vesselId)} className="hover:bg-surface-container-highest cursor-pointer">
+                          <td className={`py-1.5 px-4 font-bold ${t.severity === 'CRITICAL' ? 'text-error' : 'text-primary-fixed-dim'}`}>{t.severity}</td>
+                          <td className="py-1.5 px-4 text-outline">{t.timestamp}</td>
+                          <td className="py-1.5 px-4 text-on-surface-variant">{t.vesselName}</td>
+                          <td className="py-1.5 px-4">{t.type}</td>
+                          <td className="py-1.5 px-4">{t.location}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -99,19 +160,30 @@ export const BottomWorkspace: React.FC = () => {
             <div className="flex gap-4 mb-4">
               <button 
                 onClick={toggleSimulation}
-                className={`border px-4 py-2 font-label-caps transition-colors ${simulation.isRunning ? 'bg-error/10 border-error text-error hover:bg-error hover:text-on-error' : 'bg-primary-fixed-dim/10 border-primary-fixed-dim text-primary-fixed-dim hover:bg-primary-fixed-dim hover:text-on-primary'}`}
+                className={`border px-4 py-2 font-label-caps transition-colors ${!simulation.isRunning ? 'bg-error/10 border-error text-error hover:bg-error hover:text-on-error' : 'bg-primary-fixed-dim/10 border-primary-fixed-dim text-primary-fixed-dim hover:bg-primary-fixed-dim hover:text-on-primary'}`}
               >
-                {simulation.isRunning ? 'PAUSE ENGINE' : 'START ENGINE'}
+                {!simulation.isRunning ? 'PAUSE UI SYNC' : 'START UI SYNC'}
               </button>
             </div>
             <div className="flex gap-4">
-              <button className="bg-error/10 border border-error text-error px-4 py-2 font-label-caps hover:bg-error hover:text-on-error transition-colors">
+              <button 
+                onClick={() => fetch('http://localhost:3000/api/simulation/dark-fleet', { method: 'POST' })}
+                className="bg-error/10 border border-error text-error px-4 py-2 font-label-caps hover:bg-error hover:text-on-error transition-colors">
                 TRIGGER DARK FLEET
               </button>
-              <button className="bg-surface-container-highest border border-outline-variant text-on-surface px-4 py-2 font-label-caps hover:border-primary-fixed-dim transition-colors">
-                SIMULATE OIL SPILL
+              <button 
+                onClick={() => fetch('http://localhost:3000/api/simulation/force-stop', { method: 'POST' })}
+                className="bg-surface-container-highest border border-outline-variant text-on-surface px-4 py-2 font-label-caps hover:border-primary-fixed-dim transition-colors">
+                TRIGGER STATIONARY
               </button>
-              <button className="bg-surface-container-highest border border-outline-variant text-on-surface px-4 py-2 font-label-caps hover:border-primary-fixed-dim transition-colors">
+              <button 
+                onClick={() => fetch('http://localhost:3000/api/simulation/rapid-heading', { method: 'POST' })}
+                className="bg-surface-container-highest border border-outline-variant text-on-surface px-4 py-2 font-label-caps hover:border-primary-fixed-dim transition-colors">
+                TRIGGER REDIRECTION
+              </button>
+              <button 
+                onClick={() => fetch('http://localhost:3000/api/simulation/rendezvous', { method: 'POST' })}
+                className="bg-surface-container-highest border border-outline-variant text-on-surface px-4 py-2 font-label-caps hover:border-primary-fixed-dim transition-colors">
                 SPAWN RENDEZVOUS
               </button>
             </div>

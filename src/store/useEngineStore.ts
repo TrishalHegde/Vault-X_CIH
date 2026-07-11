@@ -89,96 +89,11 @@ export const useEngineStore = create<EngineState>((set, get) => ({
   selectedVessel: null,
   actions: {
     initEngine: () => {
-      if (ws) return; // Already initialized
-      
-      ws = new WebSocket('ws://localhost:3000');
-      
-      ws.onopen = () => {
-        set((state) => ({
-          logs: [{ timestamp: new Date().toISOString(), message: 'Connected to Engine Server' }, ...state.logs].slice(0, 100)
-        }));
-      };
-
-      ws.onmessage = (event) => {
-        const state = get();
-        if (!state.simulation.isRunning) return;
-
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload.type === 'engine_update') {
-            
-            // Map backend vessels to UI format with history tracking (history omitted from backend for bandwidth)
-            const oldVesselsMap = new Map(state.vessels.map(v => [v.id, v]));
-            
-            const newVessels = payload.vessels.map((v: any) => {
-              const oldV = oldVesselsMap.get(v.id);
-              let history: [number, number][] = oldV ? [...oldV.history] : [];
-              
-              if (!oldV || oldV.lat !== v.lat || oldV.lng !== v.lng) {
-                history.push([v.lat, v.lng]);
-                if (history.length > 50) history.shift();
-              }
-              
-              return { ...v, history };
-            });
-
-            const newIncidents: Incident[] = payload.alerts.map((a: any) => ({
-              id: a.id,
-              timestamp: new Date(a.timestamp).toLocaleTimeString(),
-              vesselId: a.vesselId,
-              vesselName: a.vesselName,
-              type: a.type,
-              severity: a.severity,
-              location: a.location,
-              status: a.status
-            }));
-
-            // Optional: generate log entries from incidents
-            const newLogs = newIncidents.map(inc => ({
-              timestamp: inc.timestamp,
-              message: `[${inc.severity}] ${inc.type} on ${inc.vesselName} - ${inc.status}`
-            }));
-
-            const updatedActive = [...state.activeThreats];
-            const updatedHistory = [...state.threatHistory];
-
-            newIncidents.forEach(inc => {
-              if (inc.status === 'ACTIVE') {
-                updatedActive.unshift(inc);
-              } else if (inc.status === 'RESOLVED') {
-                const idx = updatedActive.findIndex(a => a.vesselId === inc.vesselId && a.type === inc.type);
-                if (idx !== -1) {
-                  const resolved = updatedActive.splice(idx, 1)[0];
-                  resolved.status = 'RESOLVED';
-                  resolved.timestamp = inc.timestamp; // update resolution time
-                  updatedHistory.unshift(resolved);
-                } else {
-                  updatedHistory.unshift(inc);
-                }
-              }
-            });
-
-            set({
-              vessels: newVessels,
-              activeThreats: updatedActive.slice(0, 100),
-              threatHistory: updatedHistory.slice(0, 500),
-              logs: [...newLogs, ...state.logs].slice(0, 200),
-              stats: payload.stats,
-              restrictedCells: payload.restrictedCells || []
-            });
-          }
-        } catch (e) {
-          console.error("Error parsing WS message", e);
-        }
-      };
-
-      ws.onclose = () => {
-        ws = null;
-        set((state) => ({
-          logs: [{ timestamp: new Date().toISOString(), message: 'Disconnected from Engine Server' }, ...state.logs].slice(0, 100)
-        }));
-        // Reconnect logic can be added here
-      };
+      // Backend is removed, websocket connection disabled.
+      console.log("Engine init called, but backend has been removed.");
+      set((state) => ({
+        logs: [{ timestamp: new Date().toISOString(), message: 'Offline mode: Backend disconnected' }, ...state.logs].slice(0, 100)
+      }));
     },
     toggleSimulation: () => {
       set((state) => ({

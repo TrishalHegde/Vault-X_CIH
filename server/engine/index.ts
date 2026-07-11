@@ -6,7 +6,40 @@ import { DarkFleetEngine } from './darkFleet';
 import { StationaryVesselEngine } from './stationary';
 import { RedirectionEngine } from './redirection';
 import { EcologicalZoneEngine } from './ecological';
+import { RendezvousEngine } from './rendezvous';
+import { RiskScoringEngine } from './riskScoring';
+import { ALL_RESTRICTED_ZONES, GREY_ZONES } from '../data/zones';
+import { latLngToCell, gridDisk } from 'h3-js';
 import { WebSocketServer, WebSocket } from 'ws';
+
+const H3_RESOLUTION = 5; // coarser resolution covers MPAs well without too many cells
+
+function seedRestrictedZonesIntoH3(h3Engine: H3Engine) {
+  let totalSeeded = 0;
+  for (const zone of ALL_RESTRICTED_ZONES) {
+    const centerCell = latLngToCell(zone.center[0], zone.center[1], H3_RESOLUTION);
+    // Fill a disk of cells to cover the zone radius
+    const ringsNeeded = Math.ceil(zone.radiusKm / 8.5); // ~8.5km per ring at res 5
+    const cells = gridDisk(centerCell, ringsNeeded);
+    for (const cell of cells) {
+      h3Engine.addGeofencedCell(cell);
+      totalSeeded++;
+    }
+  }
+  // Also seed grey zones with a different tier tag (we track via radius comparison)
+  for (const zone of GREY_ZONES) {
+    if (zone.type === 'grey_buffer') {
+      const centerCell = latLngToCell(zone.center[0], zone.center[1], H3_RESOLUTION);
+      const ringsNeeded = Math.ceil(zone.radiusKm / 8.5);
+      const cells = gridDisk(centerCell, ringsNeeded);
+      for (const cell of cells) {
+        h3Engine.addGeofencedCell(cell);
+        totalSeeded++;
+      }
+    }
+  }
+  console.log(`[Zones] Seeded ${totalSeeded} H3 cells (res ${H3_RESOLUTION}) from ${ALL_RESTRICTED_ZONES.length} restricted zones`);
+}
 
 export class EngineCoordinator {
   private generator: SyntheticAISGenerator;
@@ -17,6 +50,8 @@ export class EngineCoordinator {
   private stationaryEngine: StationaryVesselEngine;
   private redirectionEngine: RedirectionEngine;
   private ecologicalEngine: EcologicalZoneEngine;
+  private rendezvousEngine: RendezvousEngine;
+  private riskScoringEngine: RiskScoringEngine;
   
   private wss: WebSocketServer;
   private activeThreats: number = 0;
@@ -27,17 +62,22 @@ export class EngineCoordinator {
     this.wss = wss;
     this.h3Engine = new H3Engine();
     
-    // Add a hardcoded geofence for testing (e.g. around Mumbai port)
+    // Seed H3 engine from MPA + Naval zones defined in zones.ts
+    seedRestrictedZonesIntoH3(this.h3Engine);
+    
+    // Dynamic geofences (user-created at runtime via API)
     this.dynamicGeofences = new DynamicGeofenceManager(this.h3Engine);
-    this.dynamicGeofences.addGeofence('GF-TEST-MUMBAI', 18.9220, 72.8347, 2);
 
     this.geofenceEngine = new GeofenceEngine(this.h3Engine);
     this.darkFleetEngine = new DarkFleetEngine(this.h3Engine);
     this.stationaryEngine = new StationaryVesselEngine(this.h3Engine);
     this.redirectionEngine = new RedirectionEngine(this.h3Engine);
     this.ecologicalEngine = new EcologicalZoneEngine(this.h3Engine);
+    this.rendezvousEngine = new RendezvousEngine(this.h3Engine);
+    this.riskScoringEngine = new RiskScoringEngine();
 
-    this.generator = new SyntheticAISGenerator(500, 100, 1000); // 500 vessels, batch size 100, 1s tick
+    // 800 vessels, batch size 100, 1s real-time tick
+    this.generator = new SyntheticAISGenerator(800, 100, 1000);
     
     this.startTime = Date.now();
     this.generator.setCallback(this.onBatchProcessed.bind(this));
@@ -74,11 +114,22 @@ export class EngineCoordinator {
     alerts.push(...this.stationaryEngine.processBatch(messages));
     alerts.push(...this.redirectionEngine.processBatch(messages));
     alerts.push(...this.ecologicalEngine.processBatch(messages));
+    alerts.push(...this.rendezvousEngine.processBatch(messages));
     
     this.msgProcessed += messages.length;
     
     // Calculate active threats (just unique alert counts currently active)
-    this.activeThreats = alerts.length;
+    this.activeThreats = alerts.filter(a => a.status === 'ACTIVE').length;
+
+    // Apply risk scoring
+    const enrichedMessages = messages.map(msg => {
+      const { score, severity } = this.riskScoringEngine.calculateRisk(msg, alerts);
+      return {
+        ...msg,
+        riskScore: score,
+        risk: severity.toLowerCase()
+      };
+    });
 
     const endProcessTime = performance.now();
     const latency = endProcessTime - startProcessTime;
@@ -88,7 +139,7 @@ export class EngineCoordinator {
 
     const payload = {
       type: 'engine_update',
-      vessels: messages, // Send the latest batch of vessels
+      vessels: enrichedMessages,
       alerts: alerts,
       stats: {
         totalTracked: 500, // Hardcoded generator size

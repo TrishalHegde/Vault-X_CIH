@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useEngineStore } from '../../store/useEngineStore';
 
-type Tab = 'table' | 'simulation' | 'performance' | 'health';
+type Tab = 'table' | 'simulation' | 'performance' | 'health' | 'darkFleet' | 'rendezvous' | 'topRisk';
 
 export const BottomWorkspace: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('table');
@@ -18,7 +18,23 @@ export const BottomWorkspace: React.FC = () => {
     { id: 'simulation', icon: 'joystick', label: 'SIMULATION' },
     { id: 'performance', icon: 'speed', label: 'PERFORMANCE' },
     { id: 'health', icon: 'medical_services', label: 'SYSTEM HEALTH' },
+    { id: 'darkFleet', icon: 'visibility_off', label: 'DARK FLEET' },
+    { id: 'rendezvous', icon: 'hub', label: 'RENDEZVOUS' },
+    { id: 'topRisk', icon: 'warning', label: 'TOP RISK VESSELS' },
   ];
+
+  const getRiskColor = (risk: string) => {
+    switch(risk) {
+      case 'critical': return 'text-error font-bold';
+      case 'high': return 'text-[#ffb339] font-bold';
+      case 'medium': return 'text-primary-fixed-dim';
+      default: return 'text-outline';
+    }
+  };
+
+  const topRiskVessels = [...vessels].sort((a, b) => (b.riskScore || 0) - (a.riskScore || 0)).slice(0, 10);
+  const darkFleetAlerts = activeThreats.filter(a => a.type === 'Dark Fleet');
+  const rendezvousAlerts = activeThreats.filter(a => a.type === 'Rendezvous');
 
   return (
     <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-auto bg-surface-container-low/95 backdrop-blur-xl border-t border-outline-variant flex flex-col h-[320px]">
@@ -61,13 +77,13 @@ export const BottomWorkspace: React.FC = () => {
             </thead>
             <tbody className="font-data-tabular text-data-tabular text-on-surface divide-y divide-outline-variant/50">
               {vessels.slice(0, 100).map(v => (
-                <tr key={v.id} onClick={() => setSelectedVessel(v.id)} className={`hover:bg-surface-container-highest cursor-pointer transition-colors ${v.risk === 'high' ? 'bg-error/5' : ''}`}>
-                  <td className="py-1.5 px-4"><div className={`w-2 h-2 rounded-full mx-auto ${v.risk === 'high' ? 'bg-error pulse-critical' : 'bg-primary-fixed-dim glow-active'}`}></div></td>
-                  <td className={`py-1.5 px-4 ${v.risk === 'high' ? 'text-error' : 'text-primary-fixed-dim'}`}>{v.mmsi || v.id}</td>
-                  <td className={`py-1.5 px-4 ${v.risk === 'high' ? 'text-error' : 'font-bold text-primary-fixed-dim'}`}>{v.name}</td>
+                <tr key={v.id} onClick={() => setSelectedVessel(v.id)} className={`hover:bg-surface-container-highest cursor-pointer transition-colors ${v.risk === 'critical' ? 'bg-error/5' : ''}`}>
+                  <td className="py-1.5 px-4"><div className={`w-2 h-2 rounded-full mx-auto ${v.risk === 'critical' ? 'bg-error pulse-critical' : 'bg-primary-fixed-dim glow-active'}`}></div></td>
+                  <td className={`py-1.5 px-4 ${getRiskColor(v.risk)}`}>{v.mmsi || v.id}</td>
+                  <td className={`py-1.5 px-4 ${getRiskColor(v.risk)}`}>{v.name}</td>
                   <td className="py-1.5 px-4 text-on-surface-variant capitalize">{v.type}</td>
                   <td className="py-1.5 px-4 text-right">{v.speed.toFixed(1)}</td>
-                  <td className={`py-1.5 px-4 uppercase ${v.risk === 'high' ? 'text-error' : 'text-outline'}`}>{v.risk}</td>
+                  <td className={`py-1.5 px-4 uppercase ${getRiskColor(v.risk)}`}>{v.riskScore || 0} ({v.risk})</td>
                 </tr>
               ))}
             </tbody>
@@ -83,7 +99,7 @@ export const BottomWorkspace: React.FC = () => {
               </div>
               <div className="border border-outline-variant p-4 bg-surface-container">
                 <span className="font-label-caps text-outline uppercase">Average Latency</span>
-                <div className="font-data-tabular text-[24px] text-on-surface font-bold mt-2">{stats.latency} <span className="text-[12px] text-outline">ms</span></div>
+                <div className="font-data-tabular text-[24px] text-on-surface font-bold mt-2">{stats.latency.toFixed(2)} <span className="text-[12px] text-outline">ms</span></div>
               </div>
               <div className="border border-outline-variant p-4 bg-surface-container">
                 <span className="font-label-caps text-outline uppercase">Active Threats</span>
@@ -150,6 +166,98 @@ export const BottomWorkspace: React.FC = () => {
                   </table>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'darkFleet' && (
+          <div className="p-4 h-full overflow-hidden flex flex-col">
+            <h3 className="font-label-caps text-outline uppercase mb-2">Dark Fleet Anomalies</h3>
+            <div className="flex-1 overflow-y-auto border border-outline-variant bg-surface-container">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 bg-surface-container-high border-b border-outline-variant z-10">
+                  <tr>
+                    <th className="font-label-caps text-label-caps text-outline py-2 px-4">SEVERITY</th>
+                    <th className="font-label-caps text-label-caps text-outline py-2 px-4">TIME</th>
+                    <th className="font-label-caps text-label-caps text-outline py-2 px-4">VESSEL</th>
+                    <th className="font-label-caps text-label-caps text-outline py-2 px-4">LAST LOCATION</th>
+                  </tr>
+                </thead>
+                <tbody className="font-data-tabular text-[13px] text-on-surface divide-y divide-outline-variant/50">
+                  {darkFleetAlerts.length === 0 ? (
+                    <tr><td colSpan={4} className="py-4 text-center text-outline">No active Dark Fleet anomalies</td></tr>
+                  ) : (
+                    darkFleetAlerts.map(t => (
+                      <tr key={t.id} onClick={() => setSelectedVessel(t.vesselId)} className="hover:bg-surface-container-highest cursor-pointer">
+                        <td className={`py-2 px-4 font-bold ${t.severity === 'CRITICAL' ? 'text-error' : 'text-primary-fixed-dim'}`}>{t.severity}</td>
+                        <td className="py-2 px-4 text-outline">{t.timestamp}</td>
+                        <td className="py-2 px-4 text-on-surface-variant">{t.vesselName}</td>
+                        <td className="py-2 px-4">{t.location}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'rendezvous' && (
+          <div className="p-4 h-full overflow-hidden flex flex-col">
+            <h3 className="font-label-caps text-outline uppercase mb-2">Rendezvous Suspicions</h3>
+            <div className="flex-1 overflow-y-auto border border-outline-variant bg-surface-container">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 bg-surface-container-high border-b border-outline-variant z-10">
+                  <tr>
+                    <th className="font-label-caps text-label-caps text-outline py-2 px-4">SEVERITY</th>
+                    <th className="font-label-caps text-label-caps text-outline py-2 px-4">TIME</th>
+                    <th className="font-label-caps text-label-caps text-outline py-2 px-4">INVOLVED VESSELS</th>
+                    <th className="font-label-caps text-label-caps text-outline py-2 px-4">H3 CELL ID</th>
+                  </tr>
+                </thead>
+                <tbody className="font-data-tabular text-[13px] text-on-surface divide-y divide-outline-variant/50">
+                  {rendezvousAlerts.length === 0 ? (
+                    <tr><td colSpan={4} className="py-4 text-center text-outline">No active Rendezvous events</td></tr>
+                  ) : (
+                    rendezvousAlerts.map(t => (
+                      <tr key={t.id} className="hover:bg-surface-container-highest cursor-pointer">
+                        <td className={`py-2 px-4 font-bold ${t.severity === 'CRITICAL' ? 'text-error' : 'text-primary-fixed-dim'}`}>{t.severity}</td>
+                        <td className="py-2 px-4 text-outline">{t.timestamp}</td>
+                        <td className="py-2 px-4 text-on-surface-variant max-w-[200px] truncate">{t.vesselId}</td>
+                        <td className="py-2 px-4">{t.location}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'topRisk' && (
+          <div className="p-4 h-full overflow-hidden flex flex-col">
+            <h3 className="font-label-caps text-outline uppercase mb-2">Top Risk Vessels</h3>
+            <div className="flex-1 overflow-y-auto border border-outline-variant bg-surface-container">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 bg-surface-container-high border-b border-outline-variant z-10">
+                  <tr>
+                    <th className="font-label-caps text-label-caps text-outline py-2 px-4">RISK SCORE</th>
+                    <th className="font-label-caps text-label-caps text-outline py-2 px-4">VESSEL NAME</th>
+                    <th className="font-label-caps text-label-caps text-outline py-2 px-4">TYPE</th>
+                    <th className="font-label-caps text-label-caps text-outline py-2 px-4">SPEED (kn)</th>
+                  </tr>
+                </thead>
+                <tbody className="font-data-tabular text-[13px] text-on-surface divide-y divide-outline-variant/50">
+                  {topRiskVessels.map(v => (
+                    <tr key={v.id} onClick={() => setSelectedVessel(v.id)} className={`hover:bg-surface-container-highest cursor-pointer ${v.risk === 'critical' ? 'bg-error/5' : ''}`}>
+                      <td className={`py-2 px-4 font-bold ${getRiskColor(v.risk)}`}>{v.riskScore || 0}</td>
+                      <td className={`py-2 px-4 ${getRiskColor(v.risk)}`}>{v.name}</td>
+                      <td className="py-2 px-4 text-on-surface-variant capitalize">{v.type}</td>
+                      <td className="py-2 px-4">{v.speed.toFixed(1)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

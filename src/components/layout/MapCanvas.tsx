@@ -69,56 +69,7 @@ export const MapCanvas: React.FC = () => {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
 
-        {/* Tactical Overlay Elements mapped to Mangalore coordinates */}
-        
-        {/* Central Radar Ping */}
-        <Circle center={[12.9259, 74.7937]} radius={3000} pathOptions={{ color: '#0055ff', opacity: 0.3, fillOpacity: 0.1, dashArray: '10, 20' }} />
-        <Circle center={[12.9259, 74.7937]} radius={1000} pathOptions={{ color: '#0055ff', opacity: 0.5, fillOpacity: 0 }} />
-
-        {/* Whale Corridor Geofence */}
-        <Polyline 
-          positions={[
-            [12.9000, 74.7400],
-            [12.9300, 74.7500],
-            [12.9500, 74.7300],
-          ]} 
-          pathOptions={{ color: '#00e5ff', weight: 40, opacity: 0.3 }}
-        />
-        <Polyline 
-          positions={[
-            [12.9000, 74.7400],
-            [12.9300, 74.7500],
-            [12.9500, 74.7300],
-          ]} 
-          pathOptions={{ color: '#00e5ff', weight: 1, dashArray: '5, 5' }}
-        />
-
-        {/* Oil Spill Exclusion Zone */}
-        <Polygon 
-          positions={[
-            [12.9550, 74.7800],
-            [12.9600, 74.7950],
-            [12.9450, 74.7900],
-            [12.9400, 74.7750]
-          ]} 
-          pathOptions={{ color: '#ff0000', weight: 2, dashArray: '4, 2', fillColor: '#ff0000', fillOpacity: 0.3 }}
-        />
-
-        {/* Shipping Lane */}
-        <Polyline 
-          positions={[
-            [12.9000, 74.7800],
-            [12.9800, 74.8000],
-          ]} 
-          pathOptions={{ color: '#e8c351', weight: 60, opacity: 0.2 }}
-        />
-        <Polyline 
-          positions={[
-            [12.9000, 74.7800],
-            [12.9800, 74.8000],
-          ]} 
-          pathOptions={{ color: '#e8c351', weight: 2, dashArray: '10, 10', opacity: 0.5 }}
-        />
+        {/* Removed Manual Tactical Overlays. Using H3GridOverlay instead. */}
 
         {/* Live Vessels and Trails */}
         {vessels.map(v => (

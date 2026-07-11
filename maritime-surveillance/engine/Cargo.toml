@@ -1,0 +1,44 @@
+[package]
+name = "maritime_engine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+# Async Runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Spatial Indexing
+h3o = "0.6"
+
+# Bitmap
+roaring = "0.10"
+
+# PostgreSQL
+tokio-postgres = "0.7"
+
+# Logging
+log = "0.4"
+env_logger = "0.11"
+
+# Environment Variables
+dotenvy = "0.15"
+
+# Date Time
+chrono = { version = "0.4", features = ["serde", "clock"] }
+
+# UUID (future alerts)
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# Lock-free Channels
+crossbeam-channel = "0.5"
+
+# Error Handling
+anyhow = "1"
+
+# Random (benchmarking)
+rand = "0.9"

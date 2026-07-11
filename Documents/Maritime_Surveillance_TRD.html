@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRD · Real-Time Maritime Surveillance Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #060d14;
+    --bg-panel: #0b1826;
+    --bg-panel-alt: #0f2131;
+    --bg-inset: #081420;
+    --line: rgba(148,197,205,0.14);
+    --line-strong: rgba(148,197,205,0.28);
+    --amber: #ffb339;
+    --cyan: #46d9c8;
+    --red: #ff6b5e;
+    --text-hi: #eaf4f4;
+    --text-mid: #9fb8c2;
+    --text-dim: #56717d;
+    --radius: 3px;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+    --disp: 'Space Grotesk', sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--text-mid);
+    font-family:var(--sans);
+    font-size:15.5px;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---- hex grid backdrop ---- */
+  .hexfield{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    opacity:0.5;
+  }
+  .hexfield svg{width:100%; height:100%;}
+
+  .scanline{
+    position:fixed; inset:0; z-index:1; pointer-events:none;
+    background:linear-gradient(180deg, transparent 0%, rgba(70,217,200,0.035) 50%, transparent 100%);
+    height:220px; width:100%;
+    animation: sweep 9s linear infinite;
+  }
+  @keyframes sweep{
+    0%{ transform:translateY(-220px); }
+    100%{ transform:translateY(100vh); }
+  }
+
+  a{color:var(--cyan); text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  a:focus-visible, button:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+
+  /* ---- layout shell ---- */
+  .shell{
+    position:relative; z-index:2;
+    display:grid;
+    grid-template-columns: 248px 1fr;
+    min-height:100vh;
+  }
+
+  /* ---- sidebar / console rail ---- */
+  .rail{
+    position:sticky; top:0; height:100vh;
+    border-right:1px solid var(--line);
+    background:linear-gradient(180deg, var(--bg-panel) 0%, var(--bg) 100%);
+    padding:28px 20px;
+    overflow-y:auto;
+  }
+  .rail-brand{
+    font-family:var(--mono); font-size:11px; letter-spacing:0.14em;
+    color:var(--cyan); text-transform:uppercase; margin-bottom:4px;
+  }
+  .rail-sub{
+    font-family:var(--mono); font-size:10px; color:var(--text-dim);
+    margin-bottom:26px; letter-spacing:0.05em;
+  }
+  .rail-status{
+    display:flex; align-items:center; gap:8px;
+    font-family:var(--mono); font-size:10.5px; color:var(--text-mid);
+    padding:9px 10px; border:1px solid var(--line); border-radius:var(--radius);
+    background:var(--bg-inset); margin-bottom:26px;
+  }
+  .dot{width:6px; height:6px; border-radius:50%; background:var(--amber); flex-shrink:0;
+    box-shadow:0 0 6px var(--amber); animation:pulse 2.2s ease-in-out infinite;}
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+
+  .rail nav{display:flex; flex-direction:column; gap:1px;}
+  .rail nav a{
+    font-family:var(--mono); font-size:11.5px; color:var(--text-dim);
+    padding:7px 10px; border-radius:var(--radius); letter-spacing:0.02em;
+    display:flex; gap:9px; text-decoration:none; border-left:2px solid transparent;
+  }
+  .rail nav a span.n{color:var(--text-dim); opacity:0.6;}
+  .rail nav a:hover{color:var(--text-hi); background:var(--bg-inset); border-left-color:var(--cyan); text-decoration:none;}
+
+  /* ---- main content ---- */
+  main{padding:0 0 120px 0; min-width:0;}
+
+  .hero{
+    padding:70px 64px 50px 64px; border-bottom:1px solid var(--line);
+    position:relative; overflow:hidden;
+  }
+  .hero-eyebrow{
+    font-family:var(--mono); font-size:11.5px; color:var(--amber);
+    letter-spacing:0.16em; text-transform:uppercase; margin-bottom:18px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .hero-eyebrow::before{content:''; width:22px; height:1px; background:var(--amber);}
+  .hero h1{
+    font-family:var(--disp); font-weight:700; font-size:44px; color:var(--text-hi);
+    line-height:1.12; max-width:820px; letter-spacing:-0.01em;
+  }
+  .hero h1 em{font-style:normal; color:var(--cyan);}
+  .hero p.lead{
+    max-width:640px; margin-top:20px; font-size:16px; color:var(--text-mid); line-height:1.7;
+  }
+
+  .stat-row{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+    margin-top:42px; background:var(--line); border:1px solid var(--line);
+    border-radius:var(--radius); overflow:hidden;
+  }
+  .stat{
+    background:var(--bg-panel); padding:20px 22px;
+  }
+  .stat .k{
+    font-family:var(--mono); font-size:9.5px; letter-spacing:0.12em; text-transform:uppercase;
+    color:var(--text-dim); margin-bottom:8px;
+  }
+  .stat .v{
+    font-family:var(--disp); font-weight:600; font-size:26px; color:var(--cyan);
+    letter-spacing:-0.01em;
+  }
+  .stat .v.amber{color:var(--amber);}
+  .stat .u{font-family:var(--mono); font-size:11px; color:var(--text-dim); margin-left:4px;}
+
+  /* ---- section framing ---- */
+  section.block{padding:56px 64px; border-bottom:1px solid var(--line);}
+  .block-head{display:flex; align-items:baseline; gap:16px; margin-bottom:28px;}
+  .block-head .idx{font-family:var(--mono); font-size:12px; color:var(--text-dim);}
+  .block-head h2{
+    font-family:var(--disp); font-weight:600; font-size:26px; color:var(--text-hi); letter-spacing:-0.01em;
+  }
+  .block-desc{max-width:760px; color:var(--text-mid); margin-bottom:30px; font-size:15px;}
+
+  h3.sub{
+    font-family:var(--disp); font-weight:600; font-size:16.5px; color:var(--text-hi);
+    margin:30px 0 12px 0;
+  }
+  p{margin-bottom:14px; max-width:760px;}
+  ul, ol{margin:0 0 14px 22px; max-width:740px;}
+  li{margin-bottom:6px;}
+  strong{color:var(--text-hi); font-weight:600;}
+  code{
+    font-family:var(--mono); font-size:0.88em; background:var(--bg-inset);
+    padding:1.5px 6px; border-radius:3px; color:var(--cyan); border:1px solid var(--line);
+  }
+
+  /* ---- console panel (bracketed) ---- */
+  .panel{
+    position:relative; background:var(--bg-panel); border:1px solid var(--line);
+    border-radius:var(--radius); padding:24px 26px; margin:20px 0;
+  }
+  .panel::before, .panel::after{
+    content:''; position:absolute; width:12px; height:12px;
+    border-color:var(--cyan); opacity:0.55;
+  }
+  .panel::before{top:-1px; left:-1px; border-top:2px solid; border-left:2px solid;}
+  .panel::after{bottom:-1px; right:-1px; border-bottom:2px solid; border-right:2px solid;}
+  .panel-label{
+    font-family:var(--mono); font-size:10px; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--cyan); margin-bottom:14px;
+  }
+
+  pre{
+    font-family:var(--mono); font-size:12.5px; color:var(--text-mid);
+    background:var(--bg-inset); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 20px; overflow-x:auto; line-height:1.65; margin:16px 0;
+  }
+  pre .c1{color:var(--text-dim);}
+  pre .kw{color:var(--amber);}
+  pre .fn{color:var(--cyan);}
+
+  /* ---- tables ---- */
+  table{width:100%; border-collapse:collapse; margin:18px 0; font-size:13.5px;}
+  th{
+    font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:0.08em;
+    color:var(--text-dim); text-align:left; padding:9px 14px; border-bottom:1px solid var(--line-strong);
+  }
+  td{padding:11px 14px; border-bottom:1px solid var(--line); color:var(--text-mid); vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  td.id, td code.id{font-family:var(--mono); color:var(--cyan); font-size:12px; white-space:nowrap;}
+  td strong{color:var(--text-hi);}
+
+  .tag{
+    display:inline-block; font-family:var(--mono); font-size:10px; padding:2px 8px;
+    border-radius:2px; letter-spacing:0.04em; text-transform:uppercase;
+  }
+  .tag.hot{background:rgba(255,107,94,0.12); color:var(--red); border:1px solid rgba(255,107,94,0.3);}
+  .tag.off{background:rgba(70,217,200,0.1); color:var(--cyan); border:1px solid rgba(70,217,200,0.28);}
+  .tag.core{background:rgba(255,179,57,0.1); color:var(--amber); border:1px solid rgba(255,179,57,0.28);}
+
+  /* ---- architecture diagram ---- */
+  .arch{
+    background:var(--bg-inset); border:1px solid var(--line); border-radius:var(--radius);
+    padding:30px; margin:20px 0; font-family:var(--mono); font-size:12px;
+  }
+  .arch-row{display:flex; gap:14px; align-items:stretch; margin-bottom:14px; flex-wrap:wrap;}
+  .arch-box{
+    border:1px solid var(--line-strong); border-radius:var(--radius); padding:14px 16px;
+    background:var(--bg-panel); flex:1; min-width:180px;
+  }
+  .arch-box.amber{border-color:rgba(255,179,57,0.4);}
+  .arch-box.cyan{border-color:rgba(70,217,200,0.4);}
+  .arch-box .t{color:var(--text-hi); font-weight:600; margin-bottom:6px; font-size:12.5px;}
+  .arch-box .d{color:var(--text-dim); font-size:11px; line-height:1.5;}
+  .arch-arrow{
+    text-align:center; color:var(--text-dim); font-size:16px; margin:2px 0;
+  }
+
+  /* ---- feature cards ---- */
+  .feature-card{
+    border:1px solid var(--line); border-radius:var(--radius); background:var(--bg-panel);
+    margin:26px 0; overflow:hidden;
+  }
+  .feature-card .fc-head{
+    padding:18px 24px; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+    background:var(--bg-panel-alt);
+  }
+  .feature-card .fc-head h4{
+    font-family:var(--disp); font-size:18px; color:var(--text-hi); font-weight:600;
+  }
+  .feature-card .fc-body{padding:22px 24px;}
+  .fc-meta{font-family:var(--mono); font-size:10.5px; color:var(--text-dim); display:flex; gap:14px; flex-wrap:wrap;}
+  .fc-meta b{color:var(--text-mid); font-weight:500;}
+
+  .complexity-strip{
+    display:flex; gap:1px; background:var(--line); border:1px solid var(--line);
+    border-radius:var(--radius); overflow:hidden; margin:16px 0;
+  }
+  .complexity-strip div{background:var(--bg-inset); padding:12px 16px; flex:1;}
+  .complexity-strip .k{font-family:var(--mono); font-size:9.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px;}
+  .complexity-strip .v{font-family:var(--mono); font-size:13px; color:var(--cyan);}
+
+  footer{
+    padding:44px 64px; font-family:var(--mono); font-size:11px; color:var(--text-dim);
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;
+  }
+
+  @media (max-width: 880px){
+    .shell{grid-template-columns:1fr;}
+    .rail{position:relative; height:auto; border-right:none; border-bottom:1px solid var(--line);}
+    .hero, section.block, footer{padding:40px 22px;}
+    .hero h1{font-size:30px;}
+    .stat-row{grid-template-columns:repeat(2,1fr);}
+    .arch-row{flex-direction:column;}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .scanline{animation:none; display:none;}
+    .dot{animation:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="hexfield">
+  <svg xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <pattern id="hexpattern" width="56" height="97" patternUnits="userSpaceOnUse" patternTransform="scale(1)">
+        <path d="M28 0 L56 16 L56 48 L28 64 L0 48 L0 16 Z" fill="none" stroke="rgba(70,217,200,0.07)" stroke-width="1"/>
+        <path d="M28 33 L56 49 L56 81 L28 97 L0 81 L0 49 Z" fill="none" stroke="rgba(70,217,200,0.07)" stroke-width="1"/>
+      </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#hexpattern)"/>
+  </svg>
+</div>
+<div class="scanline"></div>
+
+<div class="shell">
+
+  <aside class="rail">
+    <div class="rail-brand">TRD // MSE-05</div>
+    <div class="rail-sub">Maritime Surveillance Engine</div>
+    <div class="rail-status"><span class="dot"></span> SPEC STATUS: ACTIVE BUILD</div>
+    <nav>
+      <a href="#overview"><span class="n">00</span> Overview</a>
+      <a href="#architecture"><span class="n">01</span> System Architecture</a>
+      <a href="#stack"><span class="n">02</span> Technology Stack</a>
+      <a href="#engine"><span class="n">03</span> Core Engine Design</a>
+      <a href="#dataflow"><span class="n">04</span> Data Flow &amp; Schema</a>
+      <a href="#concurrency"><span class="n">05</span> Concurrency Model</a>
+      <a href="#perf"><span class="n">06</span> Performance Engineering</a>
+      <a href="#api"><span class="n">07</span> API / WS Contract</a>
+      <a href="#frontend"><span class="n">08</span> Frontend Design</a>
+      <a href="#testing"><span class="n">09</span> Test &amp; Validation Plan</a>
+      <a href="#features"><span class="n">10</span> Extended Features</a>
+      <a href="#nfr"><span class="n">11</span> NFRs &amp; SLAs</a>
+      <a href="#risks"><span class="n">12</span> Risks &amp; Mitigations</a>
+    </nav>
+  </aside>
+
+  <main>
+
+    <section class="hero" id="overview">
+      <div class="hero-eyebrow">Technical Requirements Document</div>
+      <h1>A stream engine that turns <em>geometry</em> into a <em>lookup</em>.</h1>
+      <p class="lead">Technical specification for the Real-Time Maritime Surveillance Engine — a single-process, in-memory evaluation system built to sustain 50,000+ vessel position checks per second with sub-millisecond alerting, without any distributed streaming infrastructure.</p>
+
+      <div class="stat-row">
+        <div class="stat"><div class="k">Sustained Throughput</div><div class="v">50,000<span class="u">msg/s</span></div></div>
+        <div class="stat"><div class="k">Evaluation Latency</div><div class="v amber">&lt;1<span class="u">ms</span></div></div>
+        <div class="stat"><div class="k">Spatial Index</div><div class="v">H3<span class="u">res 6–8</span></div></div>
+        <div class="stat"><div class="k">Process Count</div><div class="v amber">1<span class="u">node</span></div></div>
+      </div>
+    </section>
+
+    <!-- 01 ARCHITECTURE -->
+    <section class="block" id="architecture">
+      <div class="block-head"><span class="idx">01</span><h2>System Architecture</h2></div>
+      <p class="block-desc">One process. Three logical stages. No network hop, no queue broker, no per-message disk write sits between message arrival and alert emission.</p>
+
+      <div class="arch">
+        <div class="arch-row">
+          <div class="arch-box cyan">
+            <div class="t">Generator Thread</div>
+            <div class="d">Synthetic AIS-style position stream. Writes raw coordinate data into a shared, zero-copy ring buffer. Isolated so generation load never starves evaluation.</div>
+          </div>
+          <div class="arch-box amber">
+            <div class="t">Hot Path — Main Thread</div>
+            <div class="d">latLngToCell() → Set.has() → counter++ → violation branch. The entire per-message cost lives here, and it is O(1).</div>
+          </div>
+          <div class="arch-box">
+            <div class="t">Alert / Metrics Layer</div>
+            <div class="d">Violations pushed to WebSocket immediately. Throughput + latency sampled and broadcast every 200ms — never per message.</div>
+          </div>
+        </div>
+        <div class="arch-arrow">↓</div>
+        <div class="arch-row">
+          <div class="arch-box">
+            <div class="t">Frontend Console</div>
+            <div class="d">React application: live map, rolling throughput/latency charts, violation feed, dynamic zone overlay.</div>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="sub">Design rationale</h3>
+      <p>The dominant failure mode in comparable systems is treating this as a <strong>volume</strong> problem and reaching for distributed infrastructure (message brokers, stream processors, multi-service pipelines). It is not a volume problem — it is a <strong>lookup</strong> problem. The expensive part — determining whether a coordinate falls inside a protected polygon — is fully solvable once, offline, at startup, by pre-tiling every protected zone into H3 hexagon cells. What remains on the hot path is a single hash-set membership check per message, which does not get slower as zone geometry grows more complex and does not benefit from distribution.</p>
+    </section>
+
+    <!-- 02 STACK -->
+    <section class="block" id="stack">
+      <div class="block-head"><span class="idx">02</span><h2>Technology Stack</h2></div>
+      <table>
+        <tr><th>Layer</th><th>Choice</th><th>Rationale</th></tr>
+        <tr><td><strong>Runtime</strong></td><td>Node.js (TypeScript)</td><td>Single-process event loop model maps directly onto the "no distributed pipeline" constraint; TypeScript catches shape errors under time pressure.</td></tr>
+        <tr><td><strong>Spatial index</strong></td><td>h3-js (Uber H3)</td><td>Hexagonal hierarchical grid; converts polygon membership into integer/string set lookup. Resolution 6–8 chosen for coastal-scale zones (≈3–36km edge).</td></tr>
+        <tr><td><strong>Inter-thread transport</strong></td><td>SharedArrayBuffer + Atomics ring buffer</td><td>Avoids structured-clone cost of postMessage; keeps generator-to-evaluator handoff at zero-copy.</td></tr>
+        <tr><td><strong>Alert transport</strong></td><td>ws / socket.io</td><td>Lightweight, persistent, push-only channel — used exclusively for low-frequency violation events and periodic metrics, never per-message telemetry.</td></tr>
+        <tr><td><strong>Frontend</strong></td><td>React (Vite)</td><td>Fast scaffold, no SSR overhead needed for an internal ops console.</td></tr>
+        <tr><td><strong>Map rendering</strong></td><td>Mapbox GL / deck.gl, canvas fallback</td><td>GPU-accelerated layer required to render thousands of points without per-marker DOM cost.</td></tr>
+        <tr><td><strong>Charts</strong></td><td>recharts / chart.js</td><td>Rolling throughput and latency visualization sampled at the metrics broadcast interval.</td></tr>
+        <tr><td><strong>Reference dataset</strong></td><td>DMA / NOAA AIS archives</td><td>Seeds realistic vessel start positions and a genuine coastline/EEZ boundary for the static geofence layer.</td></tr>
+      </table>
+    </section>
+
+    <!-- 03 ENGINE -->
+    <section class="block" id="engine">
+      <div class="block-head"><span class="idx">03</span><h2>Core Engine Design</h2></div>
+      <p class="block-desc">Startup-time cost is deliberately front-loaded so that runtime cost per message is constant, regardless of how many zones exist or how complex their true geometry is.</p>
+
+      <h3 class="sub">Startup phase (once, not per-message)</h3>
+      <pre><span class="c1">// executed once at process start</span>
+<span class="kw">const</span> forbiddenSet = <span class="fn">new Set</span>();
+<span class="kw">for</span> (<span class="kw">const</span> zone <span class="kw">of</span> protectedZonePolygons) {
+  <span class="kw">const</span> cells = h3.<span class="fn">polygonToCells</span>(zone.coordinates, RESOLUTION);
+  cells.<span class="fn">forEach</span>(cellId => forbiddenSet.<span class="fn">add</span>(cellId));
+}</pre>
+
+      <h3 class="sub">Hot path (once per incoming message)</h3>
+      <pre><span class="c1">// executed up to 50,000+ times per second</span>
+<span class="kw">function</span> <span class="fn">evaluate</span>(shipId, lat, lng, ts) {
+  <span class="kw">const</span> t0 = process.hrtime.<span class="fn">bigint</span>();
+  <span class="kw">const</span> cellId = h3.<span class="fn">latLngToCell</span>(lat, lng, RESOLUTION);
+  messagesProcessed++;
+
+  <span class="kw">if</span> (forbiddenSet.<span class="fn">has</span>(cellId)) {
+    <span class="kw">const</span> t1 = process.hrtime.<span class="fn">bigint</span>();
+    violationQueue.<span class="fn">push</span>({ shipId, cellId, ts, latencyNs: t1 - t0 });
+  }
+}</pre>
+      <p>No allocation of new objects on the non-violation path beyond the primitive cell ID string; no array retention of processed (non-violating) messages; no synchronous I/O of any kind inside <code>evaluate()</code>.</p>
+
+      <h3 class="sub">H3 resolution selection</h3>
+      <table>
+        <tr><th>Resolution</th><th>Approx. edge length</th><th>Use in this system</th></tr>
+        <tr><td>4–5</td><td>~50–100km</td><td>Too coarse — misses real boundary precision.</td></tr>
+        <tr><td><strong>6–8</strong></td><td><strong>~3–36km</strong></td><td><strong>Selected.</strong> Fine enough for genuine coastal/EEZ boundary accuracy; forbidden-set size stays in the hundreds–low-thousands of cells.</td></tr>
+        <tr><td>10+</td><td>&lt;100m</td><td>Unnecessary precision; inflates set size into the millions for no detection benefit.</td></tr>
+      </table>
+    </section>
+
+    <!-- 04 DATA FLOW -->
+    <section class="block" id="dataflow">
+      <div class="block-head"><span class="idx">04</span><h2>Data Flow &amp; Message Schema</h2></div>
+
+      <h3 class="sub">Inbound position message (binary frame, generator → evaluator)</h3>
+      <pre>[ shipId : 4 bytes ][ lat : 4 bytes ][ lng : 4 bytes ][ ts : 8 bytes ]  =  20 bytes / message</pre>
+      <p>Fixed-width binary framing is used over the shared ring buffer specifically to avoid JSON parse cost at 50,000 messages/sec — a measurable and avoidable expense at this volume.</p>
+
+      <h3 class="sub">Outbound violation alert (evaluator → WebSocket clients)</h3>
+      <pre>{
+  <span class="fn">"type"</span>: <span class="c1">"violation"</span>,
+  <span class="fn">"shipId"</span>: <span class="c1">"V-4471"</span>,
+  <span class="fn">"cellId"</span>: <span class="c1">"862830827ffffff"</span>,
+  <span class="fn">"zoneType"</span>: <span class="c1">"protected_habitat"</span>,
+  <span class="fn">"timestamp"</span>: <span class="c1">1752345600000</span>,
+  <span class="fn">"latencyMs"</span>: <span class="c1">0.34</span>
+}</pre>
+
+      <h3 class="sub">Outbound metrics tick (every 200ms)</h3>
+      <pre>{
+  <span class="fn">"type"</span>: <span class="c1">"metrics"</span>,
+  <span class="fn">"throughputPerSec"</span>: <span class="c1">52140</span>,
+  <span class="fn">"avgLatencyMs"</span>: <span class="c1">0.41</span>,
+  <span class="fn">"window"</span>: <span class="c1">"rolling_2s"</span>
+}</pre>
+    </section>
+
+    <!-- 05 CONCURRENCY -->
+    <section class="block" id="concurrency">
+      <div class="block-head"><span class="idx">05</span><h2>Concurrency Model</h2></div>
+      <p class="block-desc">Deliberately minimal. Splitting evaluation logic across a worker pool was considered and rejected — the lookup is already O(1) and single-core throughput comfortably clears the floor, so added parallelism would introduce coordination cost without a corresponding benefit.</p>
+      <div class="panel">
+        <div class="panel-label">Thread allocation</div>
+        <table>
+          <tr><th>Thread</th><th>Responsibility</th><th>Isolation reason</th></tr>
+          <tr><td>Main</td><td>Hot-path evaluation, metrics sampling, alert dispatch</td><td>Must never be blocked by data generation</td></tr>
+          <tr><td>Generator</td><td>Synthetic message production into SharedArrayBuffer ring</td><td>Prevents generation bursts from starving the evaluator</td></tr>
+        </table>
+      </div>
+      <p>If a worker pool is introduced later for a specific reason, the transport between threads must remain a <code>SharedArrayBuffer</code> / <code>Atomics</code> ring buffer — plain-object <code>postMessage</code> triggers structured cloning per call, which becomes the bottleneck it was meant to avoid.</p>
+    </section>
+
+    <!-- 06 PERFORMANCE -->
+    <section class="block" id="perf">
+      <div class="block-head"><span class="idx">06</span><h2>Performance Engineering</h2></div>
+
+      <h3 class="sub">Latency budget (target: &lt;1ms, ceiling: 5ms)</h3>
+      <div class="complexity-strip">
+        <div><div class="k">Cell computation</div><div class="v">~0.1–0.3ms</div></div>
+        <div><div class="k">Set lookup</div><div class="v">~O(1)</div></div>
+        <div><div class="k">Alert dispatch</div><div class="v">async, off critical path</div></div>
+        <div><div class="k">Total (measured)</div><div class="v">&lt;1ms typical</div></div>
+      </div>
+
+      <h3 class="sub">Throughput measurement methodology</h3>
+      <ul>
+        <li>Rolling 1–2 second average displayed continuously — not an instantaneous peak, so a lucky burst cannot be mistaken for sustained capacity.</li>
+        <li>Load sustained for multiple continuous minutes during validation to surface memory growth or GC-pressure degradation before the live demo.</li>
+        <li>Metrics and violation broadcasts are batched/interval-based specifically so the observability layer cannot itself become the bottleneck it's meant to report on.</li>
+      </ul>
+
+      <h3 class="sub">Known bottleneck sources, ranked</h3>
+      <table>
+        <tr><th>Rank</th><th>Risk</th><th>Mitigation</th></tr>
+        <tr><td>1</td><td>Generator can't produce fast enough</td><td>Batch emission; avoid per-message function call overhead</td></tr>
+        <tr><td>2</td><td>Inter-thread message cloning</td><td>SharedArrayBuffer instead of postMessage(object)</td></tr>
+        <tr><td>3</td><td>Per-message WebSocket emission for telemetry</td><td>Interval-based metrics broadcast (200–250ms)</td></tr>
+        <tr><td>4</td><td>Unbounded memory growth</td><td>Never retain non-violating messages; counters only</td></tr>
+      </table>
+    </section>
+
+    <!-- 07 API -->
+    <section class="block" id="api">
+      <div class="block-head"><span class="idx">07</span><h2>API / WebSocket Contract</h2></div>
+      <table>
+        <tr><th>Channel</th><th>Direction</th><th>Frequency</th><th>Payload</th></tr>
+        <tr><td><code>ws://.../stream</code></td><td>Server → Client</td><td>Continuous</td><td><code>metrics</code>, <code>violation</code>, <code>zone_update</code> event types</td></tr>
+        <tr><td><code>GET /zones</code></td><td>Client → Server</td><td>On load</td><td>Current static + dynamic zone polygons for map render</td></tr>
+        <tr><td><code>GET /health</code></td><td>Client → Server</td><td>On demand</td><td>Process uptime, current throughput snapshot</td></tr>
+      </table>
+    </section>
+
+    <!-- 08 FRONTEND -->
+    <section class="block" id="frontend">
+      <div class="block-head"><span class="idx">08</span><h2>Frontend Technical Design</h2></div>
+      <ul>
+        <li><strong>Map layer:</strong> GPU-accelerated rendering (Mapbox GL / deck.gl <code>ScatterplotLayer</code> / <code>HexagonLayer</code>) — never individual DOM markers, which collapse under thousands of points.</li>
+        <li><strong>State updates:</strong> React state throttled to the same 200ms cadence as the metrics broadcast, not re-rendered per incoming message.</li>
+        <li><strong>Rendered vessel count:</strong> a sampled subset is drawn for visual legibility; the evaluation engine — not the pixel count — is what is being measured against the throughput floor.</li>
+        <li><strong>Metrics panel:</strong> two primary live numbers (messages/sec, latency ms) plus a rolling 30–60s line chart — the single highest-value proof surface for the constraint set.</li>
+      </ul>
+    </section>
+
+    <!-- 09 TESTING -->
+    <section class="block" id="testing">
+      <div class="block-head"><span class="idx">09</span><h2>Test &amp; Validation Plan</h2></div>
+      <table>
+        <tr><th>Test</th><th>Method</th><th>Acceptance criteria</th></tr>
+        <tr><td>Correctness</td><td>Feed evaluator known in-zone / out-of-zone coordinates in isolation</td><td>100% correct classification</td></tr>
+        <tr><td>Sustained throughput</td><td>Run generator at max rate for 5+ continuous minutes</td><td>Rolling average ≥ 50,000 msg/s throughout</td></tr>
+        <tr><td>Latency stability</td><td>Sample evaluation latency continuously under full load</td><td>Stays under 5ms; typical &lt;1ms</td></tr>
+        <tr><td>Memory stability</td><td>Monitor heap over sustained run</td><td>No unbounded growth from non-violating messages</td></tr>
+        <tr><td>Demo determinism</td><td>Scripted vessel paths for zone crossing, dark fleet, rendezvous</td><td>Each scenario triggers reliably, not by chance</td></tr>
+      </table>
+    </section>
+
+    <!-- 10 FEATURES -->
+    <section class="block" id="features">
+      <div class="block-head"><span class="idx">10</span><h2>Extended Feature Specifications</h2></div>
+      <p class="block-desc">Each feature below extends detection coverage while remaining architecturally compatible with the throughput and latency constraints — every hot-path addition is O(1), and every periodic process runs isolated from message ingestion.</p>
+
+      <!-- Dynamic Geofence -->
+      <div class="feature-card">
+        <div class="fc-head">
+          <h4>Dynamic Geofences <span style="color:var(--text-dim); font-weight:400; font-size:14px;">— Whale Pod / Drift Zones</span></h4>
+          <span class="tag core">core hot-path compatible</span>
+        </div>
+        <div class="fc-body">
+          <div class="fc-meta"><b>Data structure:</b> mutable <code>Set&lt;cellId&gt;</code> &nbsp;·&nbsp; <b>Update trigger:</b> interval timer (5–10s) &nbsp;·&nbsp; <b>Hot path change:</b> none</div>
+          <p style="margin-top:14px;">A protected zone's center follows a predefined waypoint path. On each movement tick, the system computes the new hexagon coverage for the updated center + radius, adds the new cells to the live <code>Set</code>, and removes cells no longer in range.</p>
+          <pre><span class="c1">// runs on a timer, isolated from the ingestion loop</span>
+<span class="kw">function</span> <span class="fn">tickZoneMovement</span>(zone) {
+  <span class="kw">const</span> newCenter = zone.<span class="fn">nextWaypoint</span>();
+  <span class="kw">const</span> newCells  = h3.<span class="fn">gridDisk</span>(h3.<span class="fn">latLngToCell</span>(newCenter, RES), RADIUS_K);
+
+  newCells.<span class="fn">forEach</span>(c => forbiddenSet.<span class="fn">add</span>(c));
+  zone.currentCells.<span class="fn">forEach</span>(c => {
+    <span class="kw">if</span> (!newCells.<span class="fn">includes</span>(c)) forbiddenSet.<span class="fn">delete</span>(c);
+  });
+  zone.currentCells = newCells;
+}</pre>
+          <p>An attached speed threshold is evaluated only against a vessel's hexagon membership in the zone's <em>current</em> cell set, so the rule automatically tracks the zone's live position with no additional state to reconcile.</p>
+          <div class="complexity-strip">
+            <div><div class="k">Hot path cost added</div><div class="v">0 — unchanged</div></div>
+            <div><div class="k">Update cost</div><div class="v">O(cells in radius)</div></div>
+            <div><div class="k">Runs on</div><div class="v">Isolated timer</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dark Fleet -->
+      <div class="feature-card">
+        <div class="fc-head">
+          <h4>Dark Fleet Detection <span style="color:var(--text-dim); font-weight:400; font-size:14px;">— Transponder Drop-off</span></h4>
+          <span class="tag off">off hot-path sweep</span>
+        </div>
+        <div class="fc-body">
+          <div class="fc-meta"><b>Data structure:</b> <code>Map&lt;shipId, lastSeenTs&gt;</code> &nbsp;·&nbsp; <b>Update trigger:</b> per message (O(1)) + periodic sweep (10s) &nbsp;·&nbsp; <b>Hot path change:</b> one Map.set()</div>
+          <p style="margin-top:14px;">Every incoming message updates a last-seen timestamp for its vessel ID. A sweep — independent of the ingestion loop — checks all tracked vessels for silence beyond a threshold, escalating severity if the vessel's last known position was inside or near a sensitive zone.</p>
+          <pre><span class="c1">// per message — O(1), negligible cost</span>
+lastSeen.<span class="fn">set</span>(shipId, ts);
+
+<span class="c1">// every 10s, over distinct vessels — not the 50k/s stream</span>
+<span class="kw">for</span> (<span class="kw">const</span> [shipId, ts] <span class="kw">of</span> lastSeen) {
+  <span class="kw">if</span> (now - ts > SILENCE_THRESHOLD_MS) {
+    <span class="fn">emitAlert</span>(<span class="c1">"dark_fleet"</span>, shipId, lastKnownCell.<span class="fn">get</span>(shipId));
+  }
+}</pre>
+          <div class="complexity-strip">
+            <div><div class="k">Hot path cost added</div><div class="v">O(1) map write</div></div>
+            <div><div class="k">Sweep cost</div><div class="v">O(distinct vessels)</div></div>
+            <div><div class="k">Runs on</div><div class="v">Isolated 10s timer</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rendezvous -->
+      <div class="feature-card">
+        <div class="fc-head">
+          <h4>Rendezvous Detection <span style="color:var(--text-dim); font-weight:400; font-size:14px;">— Ship-to-Ship Transfer</span></h4>
+          <span class="tag hot">reuses existing hot-path lookup</span>
+        </div>
+        <div class="fc-body">
+          <div class="fc-meta"><b>Data structure:</b> <code>Map&lt;cellId, shipId[]&gt;</code> &nbsp;·&nbsp; <b>Update trigger:</b> per message, using the cell ID already computed &nbsp;·&nbsp; <b>Hot path change:</b> one Map update, no new geometry</div>
+          <p style="margin-top:14px;">The hexagon ID computed for every message during zone evaluation is reused to maintain a live occupancy map. If two or more distinct vessels remain within the same or adjacent hexagons beyond a defined duration, a potential rendezvous event is flagged — optionally suppressed near known ports where co-location is expected.</p>
+          <pre><span class="c1">// same cellId already computed for zone lookup — no extra geometry</span>
+<span class="kw">const</span> occupants = cellOccupancy.<span class="fn">get</span>(cellId) || [];
+<span class="kw">if</span> (!occupants.<span class="fn">includes</span>(shipId)) occupants.<span class="fn">push</span>(shipId);
+cellOccupancy.<span class="fn">set</span>(cellId, occupants);
+
+<span class="c1">// periodic check, off hot path</span>
+<span class="kw">if</span> (occupants.length >= 2 && <span class="fn">durationExceeded</span>(cellId, MIN_DURATION)) {
+  <span class="fn">emitAlert</span>(<span class="c1">"rendezvous"</span>, occupants, cellId);
+}</pre>
+          <div class="complexity-strip">
+            <div><div class="k">Hot path cost added</div><div class="v">O(1) map update</div></div>
+            <div><div class="k">Extra geometry</div><div class="v">None — reused cellId</div></div>
+            <div><div class="k">Duration check</div><div class="v">Isolated periodic pass</div></div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- 11 NFR -->
+    <section class="block" id="nfr">
+      <div class="block-head"><span class="idx">11</span><h2>Non-Functional Requirements &amp; SLAs</h2></div>
+      <table>
+        <tr><th>ID</th><th>Requirement</th><th>Target</th></tr>
+        <tr><td class="id">NFR-1</td><td>Single-process deployment, standard hardware</td><td>No distributed dependency</td></tr>
+        <tr><td class="id">NFR-2</td><td>Sustained throughput</td><td>≥ 50,000 msg/s, rolling average</td></tr>
+        <tr><td class="id">NFR-3</td><td>Evaluation latency</td><td>&lt; 5ms ceiling, &lt; 1ms typical</td></tr>
+        <tr><td class="id">NFR-4</td><td>In-memory state only on hot path</td><td>Zero synchronous disk/DB I/O per message</td></tr>
+        <tr><td class="id">NFR-5</td><td>Extended features (10.1–10.3) impact on core metrics</td><td>Not measurable / within noise margin</td></tr>
+      </table>
+    </section>
+
+    <!-- 12 RISKS -->
+    <section class="block" id="risks" style="border-bottom:none;">
+      <div class="block-head"><span class="idx">12</span><h2>Risks &amp; Mitigations</h2></div>
+      <table>
+        <tr><th>Risk</th><th>Mitigation</th></tr>
+        <tr><td>Random-walk vessel movement never triggers a visible violation live</td><td>Deterministic scripted paths for all three demo scenarios — zone crossing, drop-off, rendezvous</td></tr>
+        <tr><td>Instantaneous throughput spike mistaken for sustained performance</td><td>Rolling 1–2s average displayed at all times, never a peak reading</td></tr>
+        <tr><td>Coarse clock resolution makes latency read as a suspicious 0.00ms</td><td><code>process.hrtime.bigint()</code> nanosecond timing around the lookup step only</td></tr>
+        <tr><td>Judges question absence of Kafka/Flink</td><td>Rehearsed one-line architectural justification tied to O(1) lookup design</td></tr>
+        <tr><td>Extended features silently regress core throughput</td><td>Re-profile hot path after each feature addition before the live demo</td></tr>
+      </table>
+    </section>
+
+    <footer>
+      <span>TRD · Real-Time Maritime Surveillance Engine · Rev. 1.0</span>
+      <span>Companion document: Product Requirements Document (PRD)</span>
+    </footer>
+
+  </main>
+</div>
+
+<script>
+  // Count-up for hero stats — respects reduced motion, purely additive polish
+  (function(){
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var vals = document.querySelectorAll('.stat .v');
+    if(reduce) return;
+    vals.forEach(function(el){
+      var text = el.childNodes[0].textContent.trim();
+      var num = parseFloat(text.replace(/[^0-9.]/g,''));
+      if(isNaN(num)) return;
+      var unitSpan = el.querySelector('.u');
+      var isLess = text.indexOf('<') === 0;
+      var duration = 1100, start = null;
+      function step(ts){
+        if(!start) start = ts;
+        var p = Math.min((ts-start)/duration, 1);
+        var current = (num * p);
+        var display = num < 10 ? current.toFixed(1) : Math.floor(current).toLocaleString();
+        el.childNodes[0].textContent = (isLess ? '<' : '') + display;
+        if(p < 1) requestAnimationFrame(step);
+        else el.childNodes[0].textContent = (isLess ? '<' : '') + (num < 10 ? num.toFixed(1) : num.toLocaleString());
+      }
+      el.childNodes[0].textContent = (isLess ? '<' : '') + '0';
+      requestAnimationFrame(step);
+    });
+  })();
+</script>
+
+</body>
+</html>

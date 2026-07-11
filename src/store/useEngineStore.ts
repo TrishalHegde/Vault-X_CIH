@@ -9,7 +9,8 @@ export interface Vessel {
   type: 'cargo' | 'tanker' | 'passenger' | 'fishing' | 'patrol' | 'research' | 'tug' | 'military';
   heading: number;
   speed: number;
-  risk: 'low' | 'high';
+  risk: 'low' | 'medium' | 'high' | 'critical';
+  riskScore: number;
   history: [number, number][]; // lat, lng pairs
   originPort?: string;
   destinationPort?: string;
@@ -82,7 +83,7 @@ export const useEngineStore = create<EngineState>((set, get) => ({
     speedMultiplier: 1,
   },
   settings: {
-    showH3Grid: false,
+    showH3Grid: true,
   },
   restrictedCells: [],
   selectedVessel: null,

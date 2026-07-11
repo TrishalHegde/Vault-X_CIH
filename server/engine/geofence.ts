@@ -3,7 +3,7 @@ import { AISMessage } from './generator';
 
 export interface Alert {
   id: string;
-  type: 'Geofence Violation' | 'Dark Fleet' | 'Stationary Vessel' | 'Suspicious Redirection' | 'Ecological Zone Speed Violation';
+  type: 'Geofence Violation' | 'Dark Fleet' | 'Stationary Vessel' | 'Suspicious Redirection' | 'Ecological Zone Speed Violation' | 'Rendezvous';
   vesselId: string;
   vesselName: string;
   timestamp: number;
@@ -15,6 +15,7 @@ export interface Alert {
 
 export class GeofenceEngine {
   private activeAlerts = new Map<string, Alert>();
+  private h3Engine: H3Engine;
 
   constructor(h3Engine: H3Engine) {
     this.h3Engine = h3Engine;

@@ -27,8 +27,8 @@ export const TopHeader: React.FC = () => {
     <header className="fixed top-0 w-full z-[2000] flex items-center px-margin-edge h-[48px] justify-between border-b border-outline-variant bg-background dark:bg-background">
       {/* Brand & Logo */}
       <div className="flex items-center gap-4">
-        <div className="w-8 h-8 rounded bg-primary-fixed-dim/20 border border-primary-fixed-dim flex items-center justify-center glow-active">
-          <span className="material-symbols-outlined text-primary-fixed-dim text-[18px]">radar</span>
+        <div className="w-10 h-10 rounded border border-primary-fixed-dim/30 flex items-center justify-center glow-active overflow-hidden bg-surface-container">
+          <img src="/maritime-logo.png" alt="Maritime Command Logo" className="w-full h-full object-contain" />
         </div>
         <span className="font-headline-sm text-headline-sm font-black tracking-tighter text-primary-fixed-dim dark:text-primary-fixed-dim uppercase">
           Maritime Operations Center

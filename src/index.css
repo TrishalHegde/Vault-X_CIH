@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .glow-active {
+    box-shadow: 0 0 8px 0 rgba(0, 218, 243, 0.4);
+  }
+  .glow-critical {
+    box-shadow: 0 0 8px 0 rgba(255, 180, 171, 0.4);
+  }
+  .pulse-critical {
+    animation: pulse-red 2s infinite;
+  }
+}
+
+@keyframes pulse-red {
+  0% { border-color: #ffb4ab; box-shadow: 0 0 4px #ffb4ab; }
+  50% { border-color: #93000a; box-shadow: 0 0 12px #93000a; }
+  100% { border-color: #ffb4ab; box-shadow: 0 0 4px #ffb4ab; }
+}
+
+/* Custom scrollbar for industrial look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #111316;
+  border-left: 1px solid #3b494c;
+}
+::-webkit-scrollbar-thumb {
+  background: #333538;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00daf3;
+}

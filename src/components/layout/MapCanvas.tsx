@@ -63,10 +63,10 @@ export const MapCanvas: React.FC = () => {
         style={{ width: '100%', height: '100%' }}
         zoomControl={true}
       >
-        {/* Realistic Base Map - Standard Colorful OSM */}
+        {/* Realistic Base Map - Google Maps Standard */}
         <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+          attribution='&copy; Google Maps'
         />
 
         {/* Removed Manual Tactical Overlays. Using H3GridOverlay instead. */}

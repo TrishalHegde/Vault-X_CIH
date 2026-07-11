@@ -63,10 +63,11 @@ export const MapCanvas: React.FC = () => {
         style={{ width: '100%', height: '100%' }}
         zoomControl={true}
       >
-        {/* Realistic Base Map - Google Maps Standard */}
+        {/* Base Map - Using Google servers with gl=IN to display official Indian political boundaries */}
         <TileLayer
-          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-          attribution='&copy; Google Maps'
+          url="https://{s}.google.com/vt/lyrs=m&gl=IN&x={x}&y={y}&z={z}"
+          subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+          attribution="Map data &copy; Google"
         />
 
         {/* Removed Manual Tactical Overlays. Using H3GridOverlay instead. */}

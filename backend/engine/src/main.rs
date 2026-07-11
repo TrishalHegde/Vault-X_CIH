@@ -139,7 +139,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let point_array = [vessel.lon, vessel.lat];
                         
                         // Query R-Tree for candidate polygons
-                        for zone in rtree_ref.locate_all_at_point(&point_array) {
+                        let point_envelope = AABB::from_point(point_array);
+                        for zone in rtree_ref.locate_in_envelope_intersecting(&point_envelope) {
                             if zone.polygon.contains(&pt) {
                                 // Rule evaluation
                                 let mut violation = false;

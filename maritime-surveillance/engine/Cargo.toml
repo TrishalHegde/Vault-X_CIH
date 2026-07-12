@@ -42,3 +42,18 @@ anyhow = "1"
 
 # Random (benchmarking)
 rand = "0.9"
+
+# WebSocket Server (axum + tungstenite)
+axum = { version = "0.8", features = ["ws"] }
+tokio-tungstenite = "0.26"
+futures-util = "0.3"
+
+# Shared State
+dashmap = "6"
+parking_lot = "0.12"
+
+# Atomic counters
+atomic-counter = "1.0"
+
+# CORS middleware for axum REST endpoints
+tower-http = { version = "0.6", features = ["cors"] }

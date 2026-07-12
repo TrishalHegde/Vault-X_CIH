@@ -20,6 +20,12 @@
   100% { border-color: #ffb4ab; box-shadow: 0 0 4px #ffb4ab; }
 }
 
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.7; }
+  70% { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
 /* Custom scrollbar for industrial look */
 ::-webkit-scrollbar {
   width: 8px;

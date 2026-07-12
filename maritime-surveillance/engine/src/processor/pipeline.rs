@@ -1,17 +1,18 @@
 use std::sync::Arc;
 
 use crate::{
-    
     models::{alert::Alert, packet::TelemetryPacket},
     processor::worker::Worker,
     queue::ringbuffer::RingBuffer,
     spatial::geofence::GeofenceEngine,
+    state::SharedState,
 };
 
 pub struct ProcessingPipeline {
     telemetry_queue: RingBuffer<TelemetryPacket>,
     alert_queue: RingBuffer<Alert>,
     geofence: Arc<GeofenceEngine>,
+    state: Arc<SharedState>,
 }
 
 impl ProcessingPipeline {
@@ -19,6 +20,7 @@ impl ProcessingPipeline {
         packet_capacity: usize,
         alert_capacity: usize,
         resolution: u8,
+        state: Arc<SharedState>,
     ) -> anyhow::Result<Self> {
         let mut geofence = GeofenceEngine::new(resolution)?;
         geofence.load_demo_zone()?;
@@ -27,6 +29,7 @@ impl ProcessingPipeline {
             telemetry_queue: RingBuffer::new(packet_capacity),
             alert_queue: RingBuffer::new(alert_capacity),
             geofence: Arc::new(geofence),
+            state,
         })
     }
 
@@ -36,6 +39,7 @@ impl ProcessingPipeline {
                 self.telemetry_queue.consumer(),
                 self.alert_queue.producer(),
                 self.geofence.clone(),
+                self.state.clone(),
             );
 
             worker.start();

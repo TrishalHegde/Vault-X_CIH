@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, Polygon, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -8,6 +8,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { useEngineStore } from '../../store/useEngineStore';
 import { H3GridOverlay } from '../map/H3GridOverlay';
+import restrictedZonesData from '../../data/restricted_zones.json';
 
 // Fix leafet default icon path issues in React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -18,27 +19,32 @@ L.Icon.Default.mergeOptions({
 });
 
 const createVesselIcon = (name: string, heading: number, risk: string) => {
-  const color = risk === 'high' ? '#ff0000' : '#0055ff';
-  const shadowClass = risk === 'high' ? 'pulse-critical' : 'glow-active';
+  // All displayed vessels are flagged — use bright threat colors
+  const color = risk === 'high' ? '#ff1744' : '#ff6d00';
+  const glowColor = risk === 'high' ? 'rgba(255,23,68,0.5)' : 'rgba(255,109,0,0.4)';
+  const pulseSize = 56;
   
   return L.divIcon({
     className: 'bg-transparent border-none',
     html: `
-      <div style="position: relative; width: 24px; height: 24px; transform: rotate(${heading}deg);">
-        <div class="${shadowClass}" style="position: absolute; inset: 0; border-radius: 50%; border: 1px solid ${color}; background: ${color}33;"></div>
-        <svg width="24" height="24" viewBox="-6 -6 24 24" style="position: relative; z-index: 10;">
-          ${risk === 'high' 
-            ? `<rect x="2" y="2" width="8" height="8" fill="${color}" />`
-            : `<polygon points="6,-2 12,10 0,10" fill="${color}" />`
-          }
+      <div style="position: relative; width: 40px; height: 40px; transform: rotate(${heading}deg);">
+        <!-- Pulsing outer ring -->
+        <div style="position: absolute; top: ${-(pulseSize-40)/2}px; left: ${-(pulseSize-40)/2}px; width: ${pulseSize}px; height: ${pulseSize}px; border-radius: 50%; background: ${glowColor}; animation: pulse-ring 1.5s ease-out infinite;"></div>
+        <!-- Solid glow circle -->
+        <div style="position: absolute; inset: -4px; border-radius: 50%; border: 2px solid ${color}; background: ${color}22; box-shadow: 0 0 12px ${glowColor}, 0 0 24px ${glowColor};"></div>
+        <!-- Ship triangle -->
+        <svg width="40" height="40" viewBox="0 0 40 40" style="position: relative; z-index: 10;">
+          <polygon points="20,4 34,32 6,32" fill="${color}" stroke="#fff" stroke-width="1.5" />
+          <polygon points="20,10 28,28 12,28" fill="#fff" opacity="0.3" />
         </svg>
       </div>
-      <div style="position: absolute; top: -15px; left: 25px; color: ${color}; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: bold; white-space: nowrap; text-shadow: 0 0 2px #fff, 0 0 2px #fff;">
-        ${name}
+      <!-- Name label -->
+      <div style="position: absolute; top: -22px; left: 44px; color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 900; white-space: nowrap; text-shadow: 0 0 4px ${color}, 0 0 8px ${color}, 1px 1px 2px rgba(0,0,0,0.9); background: rgba(0,0,0,0.6); padding: 1px 6px; border-left: 3px solid ${color};">
+        ⚠ ${name}
       </div>
     `,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12]
+    iconSize: [40, 40],
+    iconAnchor: [20, 20]
   });
 };
 
@@ -47,8 +53,19 @@ export const MapCanvas: React.FC = () => {
   const MAP_CENTER: [number, number] = [17.0, 78.0];
   
   const vessels = useEngineStore((state) => state.vessels);
+  const activeThreats = useEngineStore((state) => state.activeThreats);
+  const fishingAlerts = useEngineStore((state) => state.fishingAlerts);
   const initEngine = useEngineStore((state) => state.actions.initEngine);
   const setSelectedVessel = useEngineStore((state) => state.actions.setSelectedVessel);
+
+  // Collect IDs of all flagged vessels
+  const flaggedVesselIds = new Set([
+    ...activeThreats.map(t => t.vesselId),
+    ...fishingAlerts.map(t => t.vesselId)
+  ]);
+
+  // Only display vessels that are flagged
+  const displayedVessels = vessels.filter(v => flaggedVesselIds.has(v.id));
 
   useEffect(() => {
     // Initialize engine once
@@ -63,16 +80,26 @@ export const MapCanvas: React.FC = () => {
         style={{ width: '100%', height: '100%' }}
         zoomControl={true}
       >
-        {/* Realistic Base Map - Standard Colorful OSM */}
+        {/* Realistic Base Map - Google Maps Standard */}
         <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+          attribution='&copy; <a href="https://www.google.com/intl/en_us/help/terms_maps.html">Google Maps</a>'
         />
 
-        {/* Removed Manual Tactical Overlays. Using H3GridOverlay instead. */}
+        {/* Restricted Zones GeoJSON */}
+        <GeoJSON 
+          data={restrictedZonesData as any} 
+          style={() => ({
+            color: '#ff0000',
+            weight: 2,
+            opacity: 0.6,
+            fillColor: '#ff0000',
+            fillOpacity: 0.1
+          })}
+        />
 
-        {/* Live Vessels and Trails */}
-        {vessels.map(v => (
+        {/* Live Vessels and Trails (Only Flagged) */}
+        {displayedVessels.map(v => (
           <React.Fragment key={v.id}>
             {v.history.length > 1 && (
               <Polyline 

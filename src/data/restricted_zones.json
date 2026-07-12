@@ -1,0 +1,248 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "ARB-IND-001",
+        "name": "Bombay High Offshore Oil Field",
+        "type": "Critical Infrastructure Exclusion Zone",
+        "region": "Arabian Sea",
+        "rules": {
+          "restriction_type": "TOTAL_EXCLUSION",
+          "restricted_vessel_types": ["ALL"],
+          "max_speed_knots": 99.0,
+          "trigger_duration_seconds": 0
+        }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [71.1000, 19.2000],
+            [71.6000, 19.2000],
+            [71.6000, 19.6000],
+            [71.1000, 19.6000],
+            [71.1000, 19.2000]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "ARB-IND-002",
+        "name": "Gulf of Kutch Marine National Park",
+        "type": "Marine Protected Area",
+        "region": "Arabian Sea (Gujarat Coast)",
+        "rules": {
+          "restriction_type": "ANTI_TRAWLING",
+          "restricted_vessel_types": ["Trawler", "Fishing"],
+          "max_speed_knots": 5.0,
+          "trigger_duration_seconds": 120
+        }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [69.2000, 22.3000],
+            [69.8000, 22.3000],
+            [69.8000, 22.8000],
+            [69.2000, 22.8000],
+            [69.2000, 22.3000]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "ARB-IND-003",
+        "name": "Lakshadweep Sensitive Coral Buffer",
+        "type": "Conservation Zone",
+        "region": "Arabian Sea",
+        "rules": {
+          "restriction_type": "NO_COMMERCIAL_FISHING",
+          "restricted_vessel_types": ["Trawler", "Commercial"],
+          "max_speed_knots": 8.0,
+          "trigger_duration_seconds": 300
+        }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [71.5000, 10.0000],
+            [73.5000, 10.0000],
+            [73.5000, 12.0000],
+            [71.5000, 12.0000],
+            [71.5000, 10.0000]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "BOB-IND-001",
+        "name": "Sriharikota Launch Trajectory Exclusion Zone",
+        "type": "Aerospace Security Zone",
+        "region": "Bay of Bengal",
+        "rules": {
+          "restriction_type": "MILITARY_EXCLUSION",
+          "restricted_vessel_types": ["ALL"],
+          "max_speed_knots": 99.0,
+          "trigger_duration_seconds": 0
+        }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [80.5000, 13.5000],
+            [82.5000, 13.5000],
+            [82.5000, 14.5000],
+            [80.5000, 14.5000],
+            [80.5000, 13.5000]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "BOB-IND-002",
+        "name": "Gahirmatha Marine Sanctuary",
+        "type": "Ecological Reserve",
+        "region": "Bay of Bengal (Odisha Coast)",
+        "rules": {
+          "restriction_type": "NO_FISHING",
+          "restricted_vessel_types": ["Fishing", "Trawler"],
+          "max_speed_knots": 99.0,
+          "trigger_duration_seconds": 60
+        }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [86.7500, 20.5500],
+            [87.1500, 20.5500],
+            [87.1500, 20.8500],
+            [86.7500, 20.8500],
+            [86.7500, 20.5500]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "BOB-IND-003",
+        "name": "Sundarbans Coastal Buffer",
+        "type": "Biosphere Reserve",
+        "region": "Bay of Bengal (West Bengal)",
+        "rules": {
+          "restriction_type": "ANTI_TRAWLING",
+          "restricted_vessel_types": ["Trawler", "Unregistered"],
+          "max_speed_knots": 5.0,
+          "trigger_duration_seconds": 180
+        }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [88.0000, 21.5000],
+            [89.0000, 21.5000],
+            [89.0000, 21.8000],
+            [88.0000, 21.8000],
+            [88.0000, 21.5000]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "BOB-IND-004",
+        "name": "Mahatma Gandhi Marine National Park (Wandoor)",
+        "type": "Marine Protected Area",
+        "region": "Bay of Bengal (Andaman Islands)",
+        "rules": {
+          "restriction_type": "TOTAL_EXCLUSION",
+          "restricted_vessel_types": ["ALL"],
+          "max_speed_knots": 99.0,
+          "trigger_duration_seconds": 0
+        }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [92.5000, 11.5000],
+            [92.7000, 11.5000],
+            [92.7000, 11.7000],
+            [92.5000, 11.7000],
+            [92.5000, 11.5000]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "GREY-IND-001",
+        "name": "Palk Strait IMBL Buffer (Grey Zone)",
+        "type": "Disputed / Boundary Buffer",
+        "region": "Palk Strait",
+        "rules": {
+          "restriction_type": "SUSPICIOUS_LOITERING",
+          "restricted_vessel_types": ["ALL"],
+          "max_speed_knots": 2.0,
+          "trigger_duration_seconds": 300
+        }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [79.0000, 9.5000],
+            [79.8000, 9.5000],
+            [79.8000, 10.2000],
+            [79.0000, 10.2000],
+            [79.0000, 9.5000]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "CHK-INT-001",
+        "name": "Strait of Malacca Transit Corridor",
+        "type": "Strategic Chokepoint / High Piracy Risk",
+        "region": "Andaman Sea / Malacca Strait",
+        "rules": {
+          "restriction_type": "ANTI_PIRACY_LOITERING",
+          "restricted_vessel_types": ["ALL"],
+          "max_speed_knots": 3.0,
+          "trigger_duration_seconds": 180
+        }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [98.0000, 4.0000],
+            [100.0000, 5.5000],
+            [102.0000, 3.0000],
+            [100.0000, 1.5000],
+            [98.0000, 4.0000]
+          ]
+        ]
+      }
+    }
+  ]
+}
